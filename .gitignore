@@ -1,0 +1,9 @@
+*.checkpoint.json
+*.pdf
+.DS_Store
+.env
+Thumbs.db
+desktop.ini
+node_modules/
+saida/
+trabalho/

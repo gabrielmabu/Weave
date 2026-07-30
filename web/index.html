@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cortex4U</title>
+<style>
+:root{--verde:#0F6E56;--verde-claro:#E1F5EE;--fundo:#F4F7F5;--texto:#1A1A1A;
+--texto2:#5a6b64;--borda:#e2ebe7;--erro:#E24B4A;--ambar:#E8A020}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+background:var(--fundo);color:var(--texto);line-height:1.6}
+.topo{background:var(--verde);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px}
+.topo b{font-size:17px}
+.topo span{font-size:12.5px;color:#BFEFE0;margin-left:auto}
+main{max-width:640px;margin:0 auto;padding:24px 18px 60px}
+.cartao{background:#fff;border:1px solid var(--borda);border-radius:14px;padding:20px;margin-bottom:16px}
+label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.dica{font-size:13px;color:var(--texto2);margin:0 0 10px}
+input[type=password],input[type=text],textarea{width:100%;padding:10px 12px;border:1px solid var(--borda);
+border-radius:10px;font:inherit;font-size:15px;background:#fff}
+textarea{resize:vertical;min-height:76px}
+input:focus,textarea:focus{outline:2px solid var(--verde);outline-offset:-1px}
+.solta{border:2px dashed var(--borda);border-radius:12px;padding:26px 16px;text-align:center;
+cursor:pointer;transition:.15s;background:#fbfdfc}
+.solta:hover,.solta.sobre{border-color:var(--verde);background:var(--verde-claro)}
+.solta strong{color:var(--verde)}
+.solta small{display:block;color:var(--texto2);margin-top:4px}
+button{width:100%;padding:13px;background:var(--verde);color:#fff;border:0;border-radius:10px;
+font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.exemplos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.exemplos button{width:auto;padding:5px 11px;font-size:12.5px;font-weight:500;
+background:var(--verde-claro);color:var(--verde);border-radius:20px}
+.andamento{font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;
+background:#0f2b24;color:#d7efe6;border-radius:10px;padding:12px 14px;max-height:230px;
+overflow-y:auto;white-space:pre-wrap;margin:0}
+.aviso{background:#fff8ec;border:1px solid #f0d9a8;border-left:4px solid var(--ambar);
+border-radius:0 10px 10px 0;padding:11px 14px;font-size:13.5px;margin:14px 0}
+.falha{background:#fdeeee;border:1px solid #f3c6c6;border-left:4px solid var(--erro);
+border-radius:0 10px 10px 0;padding:11px 14px;font-size:13.5px;white-space:pre-wrap}
+.oculto{display:none}
+a.baixar{display:block;text-align:center;padding:13px;background:var(--verde);color:#fff;
+border-radius:10px;text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<div class="topo"><b>🧠 Cortex4U</b><span>PDF → mapa mental</span></div>
+<main>
+
+  <div class="cartao" id="cartaoEnvio">
+    <label for="senha">Senha</label>
+    <input type="password" id="senha" autocomplete="current-password" placeholder="senha de acesso">
+
+    <label for="objetivo" style="margin-top:16px">Para que serve este mapa?</label>
+    <p class="dica">É o que mais muda o resultado. O mesmo PDF vira mapas diferentes
+      conforme o objetivo — muda o que vira nota, como agrupa e o que se conecta.</p>
+    <textarea id="objetivo" placeholder="ex.: estudar os conceitos para a prova da OAB"></textarea>
+    <div class="exemplos">
+      <button type="button" data-ex="estudar os conceitos para a prova">estudar para prova</button>
+      <button type="button" data-ex="revisar na véspera, foco no que mais cai">revisão de véspera</button>
+      <button type="button" data-ex="explicar o assunto para alguém leigo">explicar para leigo</button>
+      <button type="button" data-ex="apresentar este projeto para a diretoria">apresentar projeto</button>
+    </div>
+
+    <label for="arquivo" style="margin-top:18px">Arquivo</label>
+    <div class="solta" id="solta">
+      <strong>Escolher PDF</strong>
+      <small id="nomeArquivo">ou arraste aqui · até 18 MB</small>
+    </div>
+    <input type="file" id="arquivo" accept="application/pdf,.pdf" class="oculto">
+
+    <div class="aviso"><strong>Deixe esta aba aberta.</strong> Leva de 5 a 20 minutos,
+      conforme o tamanho. É a própria tela que mantém o servidor acordado enquanto
+      trabalha — fechando antes do fim, o processamento pode ser interrompido.</div>
+
+    <button id="enviar" disabled>Gerar mapa</button>
+  </div>
+
+  <div class="cartao oculto" id="cartaoAndamento">
+    <label>Andamento <span id="relogio" style="font-weight:400;color:var(--texto2)"></span></label>
+    <pre class="andamento" id="andamento">na fila…</pre>
+    <div id="resultado" style="margin-top:14px"></div>
+  </div>
+
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+let arquivo = null;
+let jobId = localStorage.getItem("cortex_job") || null;
+let emAndamento = false;
+
+// No plano gratuito do Render é esta página que mantém o servidor acordado:
+// a consulta de 3 em 3 segundos conta como atividade. Fechando a aba, o
+// serviço hiberna em ~15 min e leva o trabalho junto — daí o aviso.
+addEventListener("beforeunload", (e) => {
+  if (!emAndamento) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+// Senha guardada localmente para não redigitar a cada uso. É a senha do app,
+// não a chave da API — essa nunca sai do servidor.
+$("#senha").value = localStorage.getItem("cortex_senha") || "";
+$("#senha").addEventListener("change", (e) => localStorage.setItem("cortex_senha", e.target.value));
+
+for (const b of document.querySelectorAll(".exemplos button")) {
+  b.onclick = () => { $("#objetivo").value = b.dataset.ex; };
+}
+
+const marcaArquivo = (f) => {
+  arquivo = f;
+  $("#nomeArquivo").textContent = f
+    ? `${f.name} · ${(f.size / 1024 / 1024).toFixed(1)} MB`
+    : "ou arraste aqui · até 18 MB";
+  $("#enviar").disabled = !f;
+};
+
+$("#solta").onclick = () => $("#arquivo").click();
+$("#arquivo").onchange = (e) => marcaArquivo(e.target.files[0]);
+for (const ev of ["dragenter", "dragover"]) {
+  $("#solta").addEventListener(ev, (e) => { e.preventDefault(); $("#solta").classList.add("sobre"); });
+}
+for (const ev of ["dragleave", "drop"]) {
+  $("#solta").addEventListener(ev, (e) => { e.preventDefault(); $("#solta").classList.remove("sobre"); });
+}
+$("#solta").addEventListener("drop", (e) => {
+  const f = e.dataTransfer.files[0];
+  if (f && /pdf$/i.test(f.name)) marcaArquivo(f);
+});
+
+$("#enviar").onclick = async () => {
+  if (!arquivo) return;
+  $("#enviar").disabled = true;
+  $("#enviar").textContent = "enviando…";
+
+  const q = new URLSearchParams({
+    objetivo: $("#objetivo").value.trim(),
+    nome: arquivo.name,
+  });
+
+  try {
+    // O PDF vai como corpo cru, sem multipart: menos peça para dar errado
+    // e nenhuma dependência de parsing no servidor.
+    const r = await fetch(`/api/jobs?${q}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/pdf", "x-senha": $("#senha").value },
+      body: arquivo,
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
+
+    jobId = j.id;
+    localStorage.setItem("cortex_job", jobId);
+    $("#cartaoEnvio").classList.add("oculto");
+    $("#cartaoAndamento").classList.remove("oculto");
+    acompanha();
+  } catch (e) {
+    $("#enviar").disabled = false;
+    $("#enviar").textContent = "Gerar mapa";
+    alert(`Não deu para enviar: ${e.message}`);
+  }
+};
+
+async function acompanha() {
+  if (!jobId) return;
+  try {
+    const r = await fetch(`/api/jobs/${jobId}`, { headers: { "x-senha": $("#senha").value } });
+    if (r.status === 404) { localStorage.removeItem("cortex_job"); return; }
+    const j = await r.json();
+
+    $("#andamento").textContent = j.progresso.length ? j.progresso.join("\n") : "na fila…";
+    $("#andamento").scrollTop = $("#andamento").scrollHeight;
+    $("#relogio").textContent = `· ${Math.floor(j.segundos / 60)}min ${j.segundos % 60}s`;
+
+    emAndamento = j.estado === "processando" || j.estado === "na fila";
+
+    if (j.estado === "pronto") {
+      emAndamento = false;
+      $("#resultado").innerHTML =
+        `<p style="margin:0 0 10px"><strong>${j.notas} notas</strong> em ${j.grupos} grupos.</p>
+         <a class="baixar" href="/api/jobs/${jobId}/html?senha=${encodeURIComponent($("#senha").value)}">Baixar o mapa</a>
+         <p class="dica" style="margin-top:10px">Baixe agora — o servidor não guarda o arquivo para sempre.</p>`;
+      localStorage.removeItem("cortex_job");
+      return;
+    }
+    if (j.estado === "erro") {
+      emAndamento = false;
+      $("#resultado").innerHTML = `<div class="falha">${j.erro}</div>`;
+      localStorage.removeItem("cortex_job");
+      return;
+    }
+    setTimeout(acompanha, 3000);
+  } catch {
+    setTimeout(acompanha, 6000); // rede oscilou; insiste sem desistir do job
+  }
+}
+
+// Voltou à página com um job em andamento? Retoma o acompanhamento.
+if (jobId) {
+  $("#cartaoEnvio").classList.add("oculto");
+  $("#cartaoAndamento").classList.remove("oculto");
+  acompanha();
+}
+</script>
+</body>
+</html>

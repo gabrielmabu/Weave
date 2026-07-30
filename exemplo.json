@@ -1,0 +1,83 @@
+{
+  "titulo": "Direito Constitucional — Aula 3",
+  "subtitulo": "8 notas · exemplo escrito à mão para testar o render sem IA",
+  "grupos": [
+    "01 - Princípios Fundamentais",
+    "02 - Direitos e Garantias",
+    "03 - Organização do Estado"
+  ],
+  "notas": [
+    {
+      "id": "principio-da-legalidade",
+      "titulo": "Princípio da Legalidade",
+      "grupo": "01 - Princípios Fundamentais",
+      "resumo": "ninguém é obrigado a fazer ou deixar de fazer algo senão em virtude de lei",
+      "relacionado": ["reserva-legal", "hierarquia-das-normas", "direitos-fundamentais"],
+      "conteudo": "Previsto no **art. 5º, II** da CF/88: *\"ninguém será obrigado a fazer ou deixar de fazer alguma coisa senão em virtude de lei\"*.\n\n## Duas faces\n\n- **Para o particular** — pode fazer tudo o que a lei não proíbe.\n- **Para a Administração Pública** — só pode fazer o que a lei autoriza.\n\nEssa assimetria é a pegadinha mais cobrada em prova.\n\n> Não confundir com [reserva legal](#reserva-legal): legalidade é o gênero, reserva legal é a espécie."
+    },
+    {
+      "id": "reserva-legal",
+      "titulo": "Reserva Legal",
+      "grupo": "01 - Princípios Fundamentais",
+      "resumo": "matérias que só podem ser tratadas por lei em sentido estrito",
+      "relacionado": ["principio-da-legalidade", "hierarquia-das-normas"],
+      "conteudo": "Enquanto a legalidade admite qualquer ato normativo, a **reserva legal** exige *lei em sentido estrito* — aprovada pelo Legislativo.\n\n| Tipo | Exige | Exemplo |\n|---|---|---|\n| Reserva legal absoluta | lei e nada mais | criação de crime |\n| Reserva legal relativa | lei que pode delegar detalhes | fixação de alíquotas |\n\nMedida provisória **não** supre reserva legal em matéria penal."
+    },
+    {
+      "id": "hierarquia-das-normas",
+      "titulo": "Hierarquia das Normas",
+      "grupo": "01 - Princípios Fundamentais",
+      "resumo": "a pirâmide de Kelsen aplicada ao ordenamento brasileiro",
+      "relacionado": ["principio-da-legalidade", "controle-de-constitucionalidade"],
+      "conteudo": "Toda norma retira validade da que está acima dela.\n\n```mermaid\nflowchart TD\n    A[Constituição Federal] --> B[Emendas Constitucionais]\n    B --> C[Leis Complementares]\n    C --> D[Leis Ordinárias / MPs]\n    D --> E[Decretos e Portarias]\n```\n\nLei complementar **não** é hierarquicamente superior à ordinária — a diferença é de *matéria* e de *quórum*, não de posição na pirâmide. Esse ponto derruba muita gente."
+    },
+    {
+      "id": "direitos-fundamentais",
+      "titulo": "Direitos Fundamentais",
+      "grupo": "02 - Direitos e Garantias",
+      "resumo": "características, gerações e aplicabilidade imediata",
+      "relacionado": ["principio-da-legalidade", "remedios-constitucionais", "clausulas-petreas"],
+      "conteudo": "## Características\n\n- **Historicidade** — surgem e se transformam ao longo do tempo\n- **Inalienabilidade** — não podem ser vendidos ou cedidos\n- **Imprescritibilidade** — não se perdem pelo tempo\n- **Relatividade** — nenhum é absoluto, nem o direito à vida\n\n## Gerações\n\n1. **Primeira** — liberdades individuais (não fazer do Estado)\n2. **Segunda** — direitos sociais (fazer do Estado)\n3. **Terceira** — direitos difusos (meio ambiente, paz)\n\nO **art. 5º, §1º** garante aplicação imediata."
+    },
+    {
+      "id": "remedios-constitucionais",
+      "titulo": "Remédios Constitucionais",
+      "grupo": "02 - Direitos e Garantias",
+      "resumo": "os instrumentos para proteger direitos violados",
+      "relacionado": ["direitos-fundamentais", "controle-de-constitucionalidade"],
+      "conteudo": "| Remédio | Protege | Cabe quando |\n|---|---|---|\n| Habeas corpus | liberdade de locomoção | prisão ou ameaça ilegal |\n| Mandado de segurança | direito líquido e certo | ilegalidade de autoridade |\n| Habeas data | informação pessoal | acesso ou retificação de dados |\n| Mandado de injunção | direito inviabilizado | falta de norma regulamentadora |\n| Ação popular | patrimônio público | ato lesivo |\n\nHabeas corpus é **gratuito** e pode ser impetrado por qualquer pessoa, sem advogado."
+    },
+    {
+      "id": "clausulas-petreas",
+      "titulo": "Cláusulas Pétreas",
+      "grupo": "02 - Direitos e Garantias",
+      "resumo": "o núcleo da Constituição que emenda nenhuma pode abolir",
+      "relacionado": ["direitos-fundamentais", "federacao", "separacao-dos-poderes"],
+      "conteudo": "**Art. 60, §4º** — não será objeto de deliberação a proposta de emenda tendente a abolir:\n\n1. a forma federativa de Estado\n2. o voto direto, secreto, universal e periódico\n3. a separação dos Poderes\n4. os direitos e garantias individuais\n\n> O verbo é **abolir**, não *alterar*. Emenda pode modificar cláusula pétrea desde que não esvazie seu núcleo — entendimento firmado pelo STF."
+    },
+    {
+      "id": "federacao",
+      "titulo": "Forma Federativa",
+      "grupo": "03 - Organização do Estado",
+      "resumo": "autonomia dos entes e repartição de competências",
+      "relacionado": ["clausulas-petreas", "separacao-dos-poderes"],
+      "conteudo": "A federação brasileira reúne **União, Estados, Distrito Federal e Municípios** — o Brasil é um dos poucos países que dá status de ente federativo ao município.\n\n## Autonomia (tríplice capacidade)\n\n- **Auto-organização** — constituição ou lei orgânica própria\n- **Autogoverno** — eleição dos próprios representantes\n- **Autoadministração** — gestão de serviços e receitas\n\nNão existe direito de secessão: a indissolubilidade está no **art. 1º**."
+    },
+    {
+      "id": "separacao-dos-poderes",
+      "titulo": "Separação dos Poderes",
+      "grupo": "03 - Organização do Estado",
+      "resumo": "independência, harmonia e o sistema de freios e contrapesos",
+      "relacionado": ["clausulas-petreas", "federacao", "controle-de-constitucionalidade"],
+      "conteudo": "**Art. 2º** — os Poderes são independentes e harmônicos entre si.\n\n```mermaid\nflowchart LR\n    L[Legislativo] -->|fiscaliza| E[Executivo]\n    E -->|veta leis| L\n    E -->|nomeia ministros| J[Judiciário]\n    J -->|declara inconstitucional| L\n    L -->|aprova indicações| J\n```\n\nCada Poder tem funções **típicas** e **atípicas**: o Legislativo julga o Presidente em crime de responsabilidade, o Judiciário edita seu próprio regimento."
+    },
+    {
+      "id": "controle-de-constitucionalidade",
+      "titulo": "Controle de Constitucionalidade",
+      "grupo": "03 - Organização do Estado",
+      "resumo": "difuso e concentrado — quem controla, quando e com que efeito",
+      "relacionado": ["hierarquia-das-normas", "separacao-dos-poderes", "remedios-constitucionais"],
+      "conteudo": "## Difuso × Concentrado\n\n| | Difuso | Concentrado |\n|---|---|---|\n| Quem julga | qualquer juiz | só o STF |\n| Como chega | caso concreto | ação própria (ADI, ADC, ADPF) |\n| Efeito | entre as partes | **erga omnes** |\n\nNo controle difuso o Senado pode suspender a lei (**art. 52, X**), estendendo o efeito a todos.\n\n> Cuidado: lei revogada não é objeto de ADI, mas pode ser de ADPF."
+    }
+  ]
+}
