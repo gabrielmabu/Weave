@@ -5,7 +5,7 @@
 GitHub e Render fazem coisas diferentes: o GitHub guarda o **código**, o Render **roda o app**. Você usa os dois.
 
 ```bash
-cd C:\Users\gabriel.burgo\Downloads\weave
+cd caminho/para/Weave
 git init
 git add .
 git commit -m "Weave: PDF para mapa mental"
@@ -70,9 +70,11 @@ Sem essas duas variáveis o servidor sobe assim mesmo, gravando num arquivo loca
 
 ## 4. Usar
 
-Abra a URL, digite a senha, descreva o objetivo, anexe o PDF.
+Na primeira vez: **Criar conta** → e-mail, telefone, senha e o `CODIGO_CONVITE`. Depois é só entrar; a sessão dura 30 dias.
 
-Pode fechar a aba: o trabalho continua no servidor, e ao voltar com a mesma senha a página reencontra o job em andamento.
+Com a conta feita: descreva o objetivo, anexe o PDF, aguarde com a aba aberta.
+
+Para dar acesso a alguém, passe o código de convite. Para tirar acesso, apague a linha da pessoa na tabela `usuarios` do Supabase — as sessões dela caem junto.
 
 ---
 
@@ -84,6 +86,8 @@ Pode fechar a aba: o trabalho continua no servidor, e ao voltar com a mesma senh
 
 **Os jobs vivem na memória.** Se o servidor reiniciar durante um job, ele se perde e a página vai reportar "job não encontrado". O checkpoint em disco também some junto, então não há retomada — é recomeçar. No plano gratuito, fechar a aba antes do fim é justamente o que provoca isso.
 
-**A senha é única e compartilhada.** Protege contra URL vazada virar torneira aberta no seu saldo pré-pago; não identifica quem usou nem separa consumo por pessoa.
+**O código de convite é único e compartilhado.** Quem o tem cria conta. Não há como revogá-lo para uma pessoa só — trocá-lo invalida para todos, e quem já se cadastrou continua entrando. Para tirar o acesso de alguém, apague a conta no Supabase.
 
-**O saldo é dividido com o Anotô.** Mesmo projeto Google (`zapcaixa`). Uma rodada grande aqui consome cota do app de caixa em produção. O freio de 60 mil tokens protege disso, mas quem escolhe o teto é você.
+**Um usuário não enxerga o mapa do outro**, mas o log de acesso completo fica com `ADMIN_EMAIL`: quem entrou, que arquivo mandou e quanto gastou.
+
+**O saldo é dividido com o outro app.** Mesmo projeto Google do outro app. Uma rodada grande aqui consome cota do app em produção. O freio de 60 mil tokens protege disso, mas quem escolhe o teto é você.

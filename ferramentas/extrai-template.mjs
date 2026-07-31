@@ -1,8 +1,8 @@
 /**
- * Extrai template.html a partir do Anotô.html.
+ * Extrai template.html a partir do referencia.html.
  *
  * ⚠️ HISTÓRICO. Este script serviu uma vez, para tirar o esqueleto visual do
- * Anotô.html. Desde então o template.html RECEBEU A IDENTIDADE DO WEAVE —
+ * referencia.html. Desde então o template.html RECEBEU A IDENTIDADE DO WEAVE —
  * paleta preto/dourado, fios curvos, realce em dourado, a marca da teia — e
  * nada disso existe no arquivo de origem.
  *
@@ -30,9 +30,9 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Caminho do HTML de referência. Sobrescrevível, já que o arquivo original
 // vive fora deste projeto e pode estar em outro lugar na sua máquina:
-//   node ferramentas/extrai-template.mjs "C:\caminho\para\Anotô.html"
+//   node ferramentas/extrai-template.mjs "C:\caminho\para\referencia.html"
 const ORIGEM =
-  process.argv[2] ?? join(RAIZ, "..", "Obsidian V2", "Anotô.html");
+  process.argv[2] ?? join(RAIZ, "..", "Obsidian V2", "referencia.html");
 const DESTINO = join(RAIZ, "template.html");
 
 // Linhas (1-indexed) confirmadas por inspeção do arquivo original.
@@ -69,7 +69,7 @@ if (existsSync(DESTINO) && !process.argv.includes("--forcar")) {
   if (atual.includes("--ouro:#c6a15b")) {
     falha(
       "o template.html atual já tem a identidade do Weave aplicada.\n" +
-        "  Regenerar a partir do Anotô.html descartaria paleta, fios curvos,\n" +
+        "  Regenerar a partir do referencia.html descartaria paleta, fios curvos,\n" +
         "  realce em dourado e a marca — nada disso existe no arquivo de origem.\n" +
         "  Se é mesmo isso que você quer, rode de novo com --forcar.",
     );

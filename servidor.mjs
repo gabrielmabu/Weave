@@ -11,7 +11,7 @@
  *   GET  /api/jobs/:id/html → o arquivo pronto
  *
  * Um job por vez, de propósito: o saldo do Gemini é pré-pago e dividido com
- * o Anotô em produção. Dois envios simultâneos dobrariam a queima sem avisar
+ * o app em produção. Dois envios simultâneos dobrariam a queima sem avisar
  * ninguém.
  */
 
@@ -111,7 +111,7 @@ async function processa(id) {
     job.erro = e.message;
   } finally {
     // O gasto real só se conhece no fim; é ele que diz quem consumiu o quê do
-    // saldo dividido com o Anotô.
+    // saldo dividido com o outro app.
     const gasto = job.progresso.join(" ").match(/([\d.]+) tokens de entrada · ([\d.]+) de saída/);
     const num = (s) => Number(String(s).replace(/\./g, "")) || null;
     dados
@@ -173,7 +173,7 @@ app.use(express.json({ limit: "16kb" }));
  *
  * Sem ele, trocar a senha única por contas seria uma piora: antes a senha
  * barrava tudo; com cadastro livre, quem achasse a URL criaria conta e gastaria
- * o saldo pré-pago dividido com o Anotô. O código faz o mesmo papel da senha
+ * o saldo pré-pago dividido com o outro app. O código faz o mesmo papel da senha
  * antiga — separar conhecidos de desconhecidos — só que uma vez por pessoa, em
  * vez de a cada acesso.
  */

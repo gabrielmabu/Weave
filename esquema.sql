@@ -49,7 +49,7 @@ create table if not exists acessos (
   tamanho_bytes bigint,
   objetivo      text,
   -- Preenchidos quando o trabalho termina: servem para saber quem gastou o quê
-  -- do saldo compartilhado com o Anotô.
+  -- do saldo compartilhado com o outro app.
   estado        text,
   notas         int,
   tokens_entrada int,

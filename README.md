@@ -4,7 +4,7 @@ Transforma um PDF de estudo num mapa mental navegável — grafo de bolinhas, ba
 
 Projeto **independente do Anotô**: repositório, dependências e deploy próprios. Dois vínculos, ambos temporários ou históricos:
 
-- o `template.html` foi extraído do `Anotô.html`, que serviu de referência visual (histórico, já resolvido);
+- o `template.html` foi extraído do HTML de referência, que serviu de referência visual (histórico, já resolvido);
 - a chave Gemini ainda vive no **mesmo projeto Google** do Anotô, então a cota gratuita é compartilhada. Ver [Chave de API](#chave-de-api).
 
 ## Estado
@@ -35,7 +35,7 @@ gerado precisa funcionar offline. O traço é grosso de propósito: a marca vive
 
 > O `template.html` é a **fonte da verdade** do visual. O
 > `ferramentas/extrai-template.mjs` é histórico e se recusa a rodar sobre um
-> template que já tem a identidade aplicada — regenerar a partir do `Anotô.html`
+> template que já tem a identidade aplicada — regenerar a partir do HTML de referência
 > descartaria tudo isso, já que nada disso existe no arquivo de origem.
 
 ### O que o ajuste de prompt mudou (medido em PDF real de 41 páginas)
@@ -163,7 +163,7 @@ O freio de tokens é o que importa, porque considera páginas **e** número de c
 
 ### Por que isso importa aqui
 
-O saldo é **pré-pago** e **compartilhado com o Anotô** (projeto `zapcaixa`). Recarga automática desativada, então não existe fatura surpresa — mas existe o cenário de o saldo acabar e **o app de produção parar de responder**. O freio protege disso, não de cobrança.
+O saldo é **pré-pago** e **compartilhado com o outro app** (o mesmo projeto do outro app). Recarga automática desativada, então não existe fatura surpresa — mas existe o cenário de o saldo acabar e **o app de produção parar de responder**. O freio protege disso, não de cobrança.
 
 ## Onde monitorar o consumo
 
@@ -181,7 +181,7 @@ Para desligar de vez: **Desativar API** na página da Generative Language API, o
 
 Copie `.env.example` para `.env` e cole a chave (gere em [AI Studio](https://aistudio.google.com/apikey)). O `.env` está no `.gitignore` — nunca comitar.
 
-**A cota gratuita do Gemini é contada por projeto, não por chave.** A chave atual foi criada dentro do projeto que o Anotô já usa (`projects/157433417948`), porque a criação de um projeto novo estava barrada com *"The request is suspicious"*. Consequência prática: processar um PDF grande consome cota do app de caixa em produção.
+**A cota gratuita do Gemini é contada por projeto, não por chave.** A chave atual vive num projeto Google que já era usado por outro app, porque a criação de um projeto novo estava barrada com *"The request is suspicious"*. Consequência prática: processar um PDF grande consome cota desse outro app em produção.
 
 Uma chave separada dentro do mesmo projeto ainda vale a pena — isola a **revogação**, não o **limite**. Se uma vazar, você mata só ela.
 
@@ -193,4 +193,4 @@ Revogue imediatamente em AI Studio → detalhes da chave → *Excluir chave*, e 
 
 ## Ferramentas
 
-`ferramentas/extrai-template.mjs` regenera o `template.html` a partir do `Anotô.html` original. Rodar só se o original mudar — o template já está commitado. O script valida cada âncora antes de mexer e falha alto se o arquivo de origem não for o esperado.
+`ferramentas/extrai-template.mjs` regenera o `template.html` a partir do HTML de referência original. Rodar só se o original mudar — o template já está commitado. O script valida cada âncora antes de mexer e falha alto se o arquivo de origem não for o esperado.
