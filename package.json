@@ -8,7 +8,8 @@
     "start": "node servidor.mjs",
     "dev": "node servidor.mjs",
     "exemplo": "node gerar.mjs --json exemplo.json -o saida/exemplo.html",
-    "teste": "node --test testes/*.test.mjs"
+    "teste": "node --test testes/*.test.mjs",
+    "checar": "node ferramentas/checar.mjs"
   },
   "dependencies": {
     "express": "^5.2.1",
