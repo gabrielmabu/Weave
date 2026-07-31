@@ -65,6 +65,12 @@ padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--borda)}
 font-weight:500;margin-left:auto;text-decoration:underline}
 .link:hover{background:none;color:var(--ouro-claro)}
 .oculto{display:none}
+/* No formulário de conta os campos ficam empilhados sem nada entre eles, então
+   o respiro tem de vir do próprio campo — sem isto o botão dourado encosta no
+   último input. Restrito ao cartão de conta: nas outras telas o espaçamento já
+   vem dos blocos em volta. */
+#cartaoConta input{margin-bottom:15px}
+#botaoConta{margin-top:3px}
 a.baixar{display:block;text-align:center;padding:13px;background:var(--ouro);color:#08080a;
 border-radius:10px;text-decoration:none;font-weight:600}
 a.baixar:hover{background:var(--ouro-claro)}
