@@ -1,9 +1,21 @@
-*.checkpoint.json
-*.pdf
-.DS_Store
-.env
-Thumbs.db
-desktop.ini
 node_modules/
+.env
+
+# Entradas e saídas: regeneráveis, e pesadas demais para a história do git.
+# O gerador escreve em saida/, mas o download do navegador cai na raiz.
+*.pdf
+*.checkpoint.json
 saida/
 trabalho/
+/*.html
+!/template.html
+
+# Capturas de tela e imagens avulsas.
+*.jpg
+*.jpeg
+*.png
+
+# Lixo de sistema de arquivos.
+.DS_Store
+Thumbs.db
+desktop.ini
