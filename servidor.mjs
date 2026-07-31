@@ -15,6 +15,7 @@
  * ninguém.
  */
 
+import { carregaEnv } from "./env.mjs";
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from "node:fs";
@@ -27,6 +28,12 @@ import {
   geraHash, conferaSenha, geraToken, expiraEm,
   validaCadastro, normalizaEmail,
 } from "./auth.mjs";
+
+// Primeira linha executada do arquivo. Em ESM os `import` são avaliados antes
+// de qualquer instrução do corpo, então não adianta chamar isto "antes" dos
+// imports — o que importa é vir antes de qualquer leitura de process.env, e
+// todas elas estão daqui para baixo.
+carregaEnv();
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const TRABALHO = join(AQUI, "trabalho");

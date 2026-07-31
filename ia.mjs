@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { carregaEnv } from "./env.mjs";
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -39,26 +40,6 @@ const aviso = (...args) => (contexto.getStore()?.relator ?? console.warn)(...arg
 /** Roda `fn` reportando progresso para `relator` em vez do console. */
 export function comRelator(relator, fn) {
   return contexto.run({ relator }, fn);
-}
-
-/** Lê o .env sem dependência externa. Formato: CHAVE=valor, # comenta. */
-function carregaEnv() {
-  const env = { ...process.env };
-  try {
-    for (const linha of readFileSync(join(AQUI, ".env"), "utf8").split("\n")) {
-      const corte = linha.indexOf("=");
-      if (corte < 0) continue;
-      const chave = linha.slice(0, corte).trim();
-      if (!chave || chave.startsWith("#")) continue;
-      // O .env só preenche o que ainda não veio do ambiente.
-      if (env[chave] === undefined || env[chave] === "") {
-        env[chave] = linha.slice(corte + 1).trim().replace(/^["']|["']$/g, "");
-      }
-    }
-  } catch {
-    /* sem .env: segue só com o ambiente */
-  }
-  return env;
 }
 
 // ---------------------------------------------------------------- schemas

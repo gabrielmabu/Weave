@@ -10,25 +10,15 @@
  * Não imprime nenhuma credencial — só diz se está lá e se funciona.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { carregaEnv } from "../env.mjs";
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Mesmo leitor do ia.mjs: o .env só preenche o que não veio do ambiente.
-const env = { ...process.env };
-try {
-  for (const linha of readFileSync(join(RAIZ, ".env"), "utf8").split("\n")) {
-    const corte = linha.indexOf("=");
-    if (corte < 0) continue;
-    const chave = linha.slice(0, corte).trim();
-    if (!chave || chave.startsWith("#")) continue;
-    if (!env[chave]) env[chave] = linha.slice(corte + 1).trim().replace(/^["']|["']$/g, "");
-  }
-} catch {
-  console.log("· sem arquivo .env — lendo só do ambiente\n");
-}
+if (!existsSync(join(RAIZ, ".env"))) console.log("· sem arquivo .env — lendo só do ambiente\n");
+const env = carregaEnv(join(RAIZ, ".env"));
 
 let problemas = 0;
 const ok = (msg) => console.log(`  ✓ ${msg}`);
