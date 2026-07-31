@@ -67,7 +67,20 @@ if (!url || !chave) {
   nota("serve para rodar aqui. No Render o disco é apagado a cada deploy,");
   nota("e usuários e log sumiriam junto.");
 } else {
-  ok(`SUPABASE_URL = ${url}`);
+  // Erro fácil: copiar o endereço do painel em vez do da API. Os dois começam
+  // com https e parecem certos, mas o do painel devolve HTML, não dados — e o
+  // erro sai como "resposta não é JSON", que não aponta para a causa.
+  if (/supabase\.com\/dashboard/.test(url)) {
+    erro("SUPABASE_URL é o endereço do painel, não o da API");
+    const ref = url.match(/\/project\/([a-z0-9]+)/)?.[1];
+    nota(ref ? `use: https://${ref}.supabase.co` : "use: https://<ref-do-projeto>.supabase.co");
+    nota("está em Settings → Data API");
+  } else if (!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/?$/.test(url)) {
+    console.log(`  ~ SUPABASE_URL = ${url}`);
+    nota("formato fora do esperado (https://<ref>.supabase.co); o teste abaixo dirá");
+  } else {
+    ok(`SUPABASE_URL = ${url}`);
+  }
   ok(`SUPABASE_SERVICE_KEY definida (${chave.length} caracteres)`);
 
   // A chave pública também autentica, mas o RLS do esquema bloqueia tudo por
