@@ -1,4 +1,4 @@
-# Cortex4U
+# Weave
 
 Transforma um PDF de estudo num mapa mental navegável — grafo de bolinhas, barra lateral e notas.
 
@@ -11,10 +11,32 @@ Projeto **independente do Anotô**: repositório, dependências e deploy própri
 
 | Etapa | O quê | Situação |
 |---|---|---|
-| 1 | Template com marcadores | ✅ pronto |
-| 2 | `render.mjs` — JSON → HTML | ✅ pronto e verificado no navegador |
+| 1 | Template com marcadores | ✅ |
+| 2 | `render.mjs` — JSON → HTML | ✅ |
 | 3 | `ia.mjs` — PDF → JSON via Gemini | ✅ rodado em PDF real de 41 páginas |
-| 4 | Ajuste de prompts | 🔄 em andamento — 2 de 3 alvos atingidos |
+| 4 | Ajuste de prompts | ✅ 2 de 3 alvos; o terceiro foi revertido |
+| 5 | Correção do markdown sem quebras | ✅ com teste de regressão |
+| 6 | Identidade Weave: preto/dourado, teia, marca | ✅ |
+| 7 | Ver a teia dentro do app e ir tecendo fontes | ⬜ próxima |
+
+## Identidade
+
+Preto e dourado, e o gráfico desenhado como teia em vez de grafo:
+
+- **fios curvos** — a aresta é uma curva perpendicular ao vão, proporcional à
+  distância, então fio curto quase não entorta e fio longo cede;
+- **mola mais frouxa** (`K` de 0,006 para 0,0034) — a teia pende em vez de
+  parecer puxada;
+- **fio aceso em dourado** ao passar pelo nó, com brilho, e os demais recuando.
+
+A marca é uma teia radial em SVG embutido — sem arquivo externo, porque o HTML
+gerado precisa funcionar offline. O traço é grosso de propósito: a marca vive a
+16px na aba do navegador, e desenho fino some nesse tamanho.
+
+> O `template.html` é a **fonte da verdade** do visual. O
+> `ferramentas/extrai-template.mjs` é histórico e se recusa a rodar sobre um
+> template que já tem a identidade aplicada — regenerar a partir do `Anotô.html`
+> descartaria tudo isso, já que nada disso existe no arquivo de origem.
 
 ### O que o ajuste de prompt mudou (medido em PDF real de 41 páginas)
 

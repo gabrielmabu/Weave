@@ -2,42 +2,42 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{TITULO}}</title>
 <style>
-:root{--verde:#0F6E56;--verde-claro:#E1F5EE;--fundo:#F4F7F5;--texto:#1A1A1A;--texto2:#5a6b64;--ambar:#E8A020;--erro:#E24B4A;--borda:#e2ebe7}
+:root{--ouro:#c6a15b;--ouro-claro:#eadfc0;--ouro-fraco:rgba(198,161,91,.13);--fundo:#08080a;--carvao:#131316;--texto:#eae6da;--texto2:#8c897e;--ambar:#E8A020;--erro:#E24B4A;--borda:#23231f}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--texto);background:var(--fundo);line-height:1.6}
-a{color:var(--verde);text-decoration:none}a:hover{text-decoration:underline}
-.topbar{position:sticky;top:0;z-index:20;background:var(--verde);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+a{color:var(--ouro);text-decoration:none}a:hover{text-decoration:underline}
+.topbar{position:sticky;top:0;z-index:20;background:var(--carvao);color:var(--ouro);padding:12px 18px;border-bottom:1px solid var(--borda);display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .topbar b{font-size:16px;display:flex;align-items:center;gap:8px}
-.topbar .sub{font-size:12.5px;color:#BFEFE0;margin-left:auto}
+.topbar .sub{font-size:12.5px;color:var(--texto2);margin-left:auto}
 .logo-img{width:26px;height:26px;border-radius:6px;object-fit:cover;flex-shrink:0;vertical-align:middle}
 .hamb{display:none;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;border-radius:8px;width:36px;height:36px;cursor:pointer}
 .layout{display:flex;max-width:1180px;margin:0 auto}
-.sidebar{width:290px;flex-shrink:0;position:sticky;top:61px;height:calc(100vh - 61px);overflow-y:auto;padding:16px 10px 40px;border-right:1px solid var(--borda);background:#fff}
+.sidebar{width:290px;flex-shrink:0;position:sticky;top:61px;height:calc(100vh - 61px);overflow-y:auto;padding:16px 10px 40px;border-right:1px solid var(--borda);background:var(--carvao)}
 .nav-grupo{margin-bottom:14px}
 .nav-grupo-tit{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--texto2);padding:4px 10px;margin-bottom:2px}
 .nav-link{display:block;font-size:14px;color:var(--texto);padding:6px 10px;border-radius:8px}
-.nav-link:hover{background:var(--verde-claro);text-decoration:none}
-.nav-link.ativo{background:var(--verde-claro);color:var(--verde);font-weight:600}
+.nav-link:hover{background:var(--ouro-fraco);text-decoration:none}
+.nav-link.ativo{background:var(--ouro-fraco);color:var(--ouro);font-weight:600}
 .content{flex:1;min-width:0;padding:8px 34px 80px}
 .nota{padding:26px 0 34px;border-bottom:1px solid var(--borda);scroll-margin-top:70px}
-.nota-crumb{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--verde);margin-bottom:2px}
-.nota h1{font-size:27px;margin:.2em 0 .5em;border-bottom:2px solid var(--verde-claro);padding-bottom:.2em}
+.nota-crumb{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ouro);margin-bottom:2px}
+.nota h1{font-size:27px;margin:.2em 0 .5em;border-bottom:2px solid var(--ouro-fraco);padding-bottom:.2em}
 .nota h2{font-size:20px;margin:1.2em 0 .4em}.nota h3{font-size:16.5px;margin:1em 0 .3em}
 .nota p{margin:.55em 0}
 .nota ul,.nota ol{margin:.4em 0;padding-left:1.4em}.nota li{margin:.2em 0}
-.nota code{background:#eef3f1;border-radius:5px;padding:1px 5px;font-size:.9em;font-family:"SFMono-Regular",Consolas,monospace}
-.nota pre{background:#0f2b24;color:#d7efe6;border-radius:12px;padding:14px 16px;overflow-x:auto}
-.nota pre code{background:none;color:#dbeee7;padding:0}
-.nota pre.mermaid{background:#fff;border:1px solid var(--borda);text-align:center}
-.nota blockquote{margin:.8em 0;padding:10px 16px;background:var(--verde-claro);border-left:4px solid var(--verde);border-radius:0 10px 10px 0;color:#234}
+.nota code{background:var(--carvao);color:var(--ouro-claro);border-radius:5px;padding:1px 5px;font-size:.9em;font-family:"SFMono-Regular",Consolas,monospace}
+.nota pre{background:var(--carvao);color:var(--texto);border:1px solid var(--borda);border-radius:12px;padding:14px 16px;overflow-x:auto}
+.nota pre code{background:none;color:var(--texto);padding:0}
+.nota pre.mermaid{background:var(--carvao);border:1px solid var(--borda);text-align:center}
+.nota blockquote{margin:.8em 0;padding:10px 16px;background:var(--ouro-fraco);border-left:4px solid var(--ouro);border-radius:0 10px 10px 0;color:var(--texto)}
 .nota blockquote p{margin:.3em 0}
 .nota table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:14px;display:block;overflow-x:auto}
 .nota th,.nota td{border:1px solid var(--borda);padding:7px 10px;text-align:left;vertical-align:top}
-.nota th{background:var(--verde-claro);color:var(--verde);font-weight:700}
-.nota tr:nth-child(even) td{background:#fafcfb}
+.nota th{background:var(--ouro-fraco);color:var(--ouro);font-weight:700}
+.nota tr:nth-child(even) td{background:rgba(255,255,255,.025)}
 .nota hr{border:none;border-top:1px solid var(--borda);margin:1.4em 0}
-.voltar-topo{position:fixed;right:18px;bottom:18px;background:var(--verde);color:#fff;border:none;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;box-shadow:0 4px 14px rgba(15,110,86,.4);opacity:0;pointer-events:none;transition:opacity .2s}
+.voltar-topo{position:fixed;right:18px;bottom:18px;background:var(--ouro);color:#08080a;border:none;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;box-shadow:0 4px 14px rgba(198,161,91,.35);opacity:0;pointer-events:none;transition:opacity .2s}
 .voltar-topo.show{opacity:1;pointer-events:auto}
 .overlay{display:none;position:fixed;inset:61px 0 0;background:rgba(0,0,0,.35);z-index:15}
 @media(max-width:820px){
@@ -51,29 +51,29 @@ a{color:var(--verde);text-decoration:none}a:hover{text-decoration:underline}
 
 .graph-btn:hover{background:rgba(255,255,255,.32)}
 
-.graph-overlay{position:fixed;inset:0;background:#0b0f0d;z-index:100;display:none}
+.graph-overlay{position:fixed;inset:0;background:#08080a;z-index:100;display:none}
 
 .graph-overlay.show{display:block}
 
 .graph-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:14px;padding:14px 18px;z-index:2;pointer-events:none}
 
-.graph-top .graph-title{color:#e7f3ee;font-size:17px;font-weight:600;pointer-events:auto;display:flex;align-items:center;gap:8px}
+.graph-top .graph-title{color:#eae6da;font-size:17px;font-weight:600;pointer-events:auto;display:flex;align-items:center;gap:8px}
 
-.graph-top .graph-close{margin-left:auto;pointer-events:auto;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e7f3ee;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer}
+.graph-top .graph-close{margin-left:auto;pointer-events:auto;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#eae6da;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer}
 
 .graph-top .graph-close:hover{background:rgba(255,255,255,.18)}
 
-.graph-hint{position:absolute;bottom:14px;left:18px;color:#7f9a90;font-size:12px;z-index:2;pointer-events:none}
+.graph-hint{position:absolute;bottom:14px;left:18px;color:#7a7362;font-size:12px;z-index:2;pointer-events:none}
 
-.graph-legend{position:absolute;bottom:64px;left:18px;z-index:2;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;font-size:11.5px;color:#cfe3da;max-width:190px;line-height:1.9}
+.graph-legend{position:absolute;bottom:64px;left:18px;z-index:2;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;font-size:11.5px;color:#d6d1c3;max-width:190px;line-height:1.9}
 
-.legend-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;color:#e7f3ee}
+.legend-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;color:#eae6da}
 
 .graph-legend.collapsed .legend-head{margin:0}
 
 .graph-legend:not(.collapsed) .legend-head{margin-bottom:4px}
 
-.legend-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#e7f3ee;width:20px;height:20px;line-height:1;border-radius:5px;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0}
+.legend-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#eae6da;width:20px;height:20px;line-height:1;border-radius:5px;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0}
 
 .legend-toggle:hover{background:rgba(255,255,255,.2)}
 
@@ -85,7 +85,7 @@ a{color:var(--verde);text-decoration:none}a:hover{text-decoration:underline}
 
 .graph-canvas.dragging{cursor:grabbing}
 
-.graph-tooltip{position:absolute;pointer-events:none;background:#12211c;border:1px solid #23443a;color:#e7f3ee;font-size:12.5px;padding:5px 9px;border-radius:6px;z-index:3;display:none;white-space:nowrap}
+.graph-tooltip{position:absolute;pointer-events:none;background:#131316;border:1px solid rgba(198,161,91,.4);color:#eae6da;font-size:12.5px;padding:5px 9px;border-radius:6px;z-index:3;display:none;white-space:nowrap}
 
 @media(max-width:820px){.graph-legend{font-size:10.5px;padding:8px 10px;max-width:150px;line-height:1.6;bottom:78px}
 .graph-legend .dot{width:8px;height:8px}
@@ -2145,7 +2145,7 @@ Expecting `+Qe.join(", ")+", got '"+(this.terminals_[Ne]||Ne)+"'":Dt="Parse erro
 `;function NWe(i,s,u=!1){var R,F,j;const d=i;let p="default";(((R=d==null?void 0:d.classes)==null?void 0:R.length)||0)>0&&(p=((d==null?void 0:d.classes)||[]).join(" ")),p=p+" flowchart-label";let v=0,b="",y;switch(d.type){case"round":v=5,b="rect";break;case"composite":v=0,b="composite",y=0;break;case"square":b="rect";break;case"diamond":b="question";break;case"hexagon":b="hexagon";break;case"block_arrow":b="block_arrow";break;case"odd":b="rect_left_inv_arrow";break;case"lean_right":b="lean_right";break;case"lean_left":b="lean_left";break;case"trapezoid":b="trapezoid";break;case"inv_trapezoid":b="inv_trapezoid";break;case"rect_left_inv_arrow":b="rect_left_inv_arrow";break;case"circle":b="circle";break;case"ellipse":b="ellipse";break;case"stadium":b="stadium";break;case"subroutine":b="subroutine";break;case"cylinder":b="cylinder";break;case"group":b="rect";break;case"doublecircle":b="doublecircle";break;default:b="rect"}const T=om((d==null?void 0:d.styles)||[]),_=d.label,A=d.size||{width:0,height:0,x:0,y:0};return{labelStyle:T.labelStyle,shape:b,labelText:_,rx:v,ry:v,class:p,style:T.style,id:d.id,directions:d.directions,width:A.width,height:A.height,x:A.x,y:A.y,positioned:u,intersect:void 0,type:d.type,padding:y??(((j=(F=Vh())==null?void 0:F.block)==null?void 0:j.padding)||0)}}async function kcn(i,s,u){const d=NWe(s,u,!1);if(d.type==="group")return;const p=await tJ(i,d),v=p.node().getBBox(),b=u.getBlock(d.id);b.size={width:v.width,height:v.height,x:0,y:0,node:p},u.setBlock(b),p.remove()}async function Ecn(i,s,u){const d=NWe(s,u,!0);u.getBlock(d.id).type!=="space"&&(await tJ(i,d),s.intersect=d==null?void 0:d.intersect,$me(d))}async function dwe(i,s,u,d){for(const p of s)await d(i,p,u),p.children&&await dwe(i,p.children,u,d)}async function Tcn(i,s,u){await dwe(i,s,u,kcn)}async function Ccn(i,s,u){await dwe(i,s,u,Ecn)}async function Scn(i,s,u,d,p){const v=new B0({multigraph:!0,compound:!0});v.setGraph({rankdir:"TB",nodesep:10,ranksep:10,marginx:8,marginy:8});for(const b of u)b.size&&v.setNode(b.id,{width:b.size.width,height:b.size.height,intersect:b.intersect});for(const b of s)if(b.start&&b.end){const y=d.getBlock(b.start),T=d.getBlock(b.end);if(y!=null&&y.size&&(T!=null&&T.size)){const _=y.size,A=T.size,P=[{x:_.x,y:_.y},{x:_.x+(A.x-_.x)/2,y:_.y+(A.y-_.y)/2},{x:A.x,y:A.y}];await IUe(i,{v:b.start,w:b.end,name:b.id},{...b,arrowTypeEnd:b.arrowTypeEnd,arrowTypeStart:b.arrowTypeStart,points:P,classes:"edge-thickness-normal edge-pattern-solid flowchart-link LS-a1 LE-b1"},void 0,"block",v,p),b.label&&(await zme(i,{...b,label:b.label,labelStyle:"stroke: #333; stroke-width: 1.5px;fill:none;",arrowTypeEnd:b.arrowTypeEnd,arrowTypeStart:b.arrowTypeStart,points:P,classes:"edge-thickness-normal edge-pattern-solid flowchart-link LS-a1 LE-b1"}),await MUe({...b,x:P[1].x,y:P[1].y},{originalPath:P}))}}}const e0=((RWe=(FWe=qt())==null?void 0:FWe.block)==null?void 0:RWe.padding)||8;function _cn(i,s){if(i===0||!Number.isInteger(i))throw new Error("Columns must be an integer !== 0.");if(s<0||!Number.isInteger(s))throw new Error("Position must be a non-negative integer."+s);if(i<0)return{px:s,py:0};if(i===1)return{px:0,py:s};const u=s%i,d=Math.floor(s/i);return{px:u,py:d}}const Acn=i=>{let s=0,u=0;for(const d of i.children){const{width:p,height:v,x:b,y}=d.size||{width:0,height:0,x:0,y:0};Xe.debug("getMaxChildSize abc95 child:",d.id,"width:",p,"height:",v,"x:",b,"y:",y,d.type),d.type!=="space"&&(p>s&&(s=p/(i.widthInColumns||1)),v>u&&(u=v))}return{width:s,height:u}};function gwe(i,s,u=0,d=0){var b,y,T,_,A,P,R,F,j,K,ee;Xe.debug("setBlockSizes abc95 (start)",i.id,(b=i==null?void 0:i.size)==null?void 0:b.x,"block width =",i==null?void 0:i.size,"sieblingWidth",u),(y=i==null?void 0:i.size)!=null&&y.width||(i.size={width:u,height:d,x:0,y:0});let p=0,v=0;if(((T=i.children)==null?void 0:T.length)>0){for(const de of i.children)gwe(de,s);const ie=Acn(i);p=ie.width,v=ie.height,Xe.debug("setBlockSizes abc95 maxWidth of",i.id,":s children is ",p,v);for(const de of i.children)de.size&&(Xe.debug(`abc95 Setting size of children of ${i.id} id=${de.id} ${p} ${v} ${de.size}`),de.size.width=p*(de.widthInColumns||1)+e0*((de.widthInColumns||1)-1),de.size.height=v,de.size.x=0,de.size.y=0,Xe.debug(`abc95 updating size of ${i.id} children child:${de.id} maxWidth:${p} maxHeight:${v}`));for(const de of i.children)gwe(de,s,p,v);const oe=i.columns||-1;let pe=0;for(const de of i.children)pe+=de.widthInColumns||1;let be=i.children.length;oe>0&&oe<pe&&(be=oe),i.widthInColumns;const ae=Math.ceil(pe/be);let ne=be*(p+e0)+e0,se=ae*(v+e0)+e0;if(ne<u){Xe.debug(`Detected to small siebling: abc95 ${i.id} sieblingWidth ${u} sieblingHeight ${d} width ${ne}`),ne=u,se=d;const de=(u-be*e0-e0)/be,X=(d-ae*e0-e0)/ae;Xe.debug("Size indata abc88",i.id,"childWidth",de,"maxWidth",p),Xe.debug("Size indata abc88",i.id,"childHeight",X,"maxHeight",v),Xe.debug("Size indata abc88 xSize",be,"padding",e0);for(const ge of i.children)ge.size&&(ge.size.width=de,ge.size.height=X,ge.size.x=0,ge.size.y=0)}if(Xe.debug(`abc95 (finale calc) ${i.id} xSize ${be} ySize ${ae} columns ${oe}${i.children.length} width=${Math.max(ne,((_=i.size)==null?void 0:_.width)||0)}`),ne<(((A=i==null?void 0:i.size)==null?void 0:A.width)||0)){ne=((P=i==null?void 0:i.size)==null?void 0:P.width)||0;const de=oe>0?Math.min(i.children.length,oe):i.children.length;if(de>0){const X=(ne-de*e0-e0)/de;Xe.debug("abc95 (growing to fit) width",i.id,ne,(R=i.size)==null?void 0:R.width,X);for(const ge of i.children)ge.size&&(ge.size.width=X)}}i.size={width:ne,height:se,x:0,y:0}}Xe.debug("setBlockSizes abc94 (done)",i.id,(F=i==null?void 0:i.size)==null?void 0:F.x,(j=i==null?void 0:i.size)==null?void 0:j.width,(K=i==null?void 0:i.size)==null?void 0:K.y,(ee=i==null?void 0:i.size)==null?void 0:ee.height)}function PWe(i,s){var d,p,v,b,y,T,_,A,P,R,F,j,K,ee,ie,oe,pe;Xe.debug(`abc85 layout blocks (=>layoutBlocks) ${i.id} x: ${(d=i==null?void 0:i.size)==null?void 0:d.x} y: ${(p=i==null?void 0:i.size)==null?void 0:p.y} width: ${(v=i==null?void 0:i.size)==null?void 0:v.width}`);const u=i.columns||-1;if(Xe.debug("layoutBlocks columns abc95",i.id,"=>",u,i),i.children&&i.children.length>0){const be=((y=(b=i==null?void 0:i.children[0])==null?void 0:b.size)==null?void 0:y.width)||0,ae=i.children.length*be+(i.children.length-1)*e0;Xe.debug("widthOfChildren 88",ae,"posX");let ne=0;Xe.debug("abc91 block?.size?.x",i.id,(T=i==null?void 0:i.size)==null?void 0:T.x);let se=(_=i==null?void 0:i.size)!=null&&_.x?((A=i==null?void 0:i.size)==null?void 0:A.x)+(-((P=i==null?void 0:i.size)==null?void 0:P.width)/2||0):-e0,de=0;for(const X of i.children){const ge=i;if(!X.size)continue;const{width:W,height:xe}=X.size,{px:U,py:Fe}=_cn(u,ne);if(Fe!=de&&(de=Fe,se=(R=i==null?void 0:i.size)!=null&&R.x?((F=i==null?void 0:i.size)==null?void 0:F.x)+(-((j=i==null?void 0:i.size)==null?void 0:j.width)/2||0):-e0,Xe.debug("New row in layout for block",i.id," and child ",X.id,de)),Xe.debug(`abc89 layout blocks (child) id: ${X.id} Pos: ${ne} (px, py) ${U},${Fe} (${(K=ge==null?void 0:ge.size)==null?void 0:K.x},${(ee=ge==null?void 0:ge.size)==null?void 0:ee.y}) parent: ${ge.id} width: ${W}${e0}`),ge.size){const Pe=W/2;X.size.x=se+e0+Pe,Xe.debug(`abc91 layout blocks (calc) px, pyid:${X.id} startingPos=X${se} new startingPosX${X.size.x} ${Pe} padding=${e0} width=${W} halfWidth=${Pe} => x:${X.size.x} y:${X.size.y} ${X.widthInColumns} (width * (child?.w || 1)) / 2 ${W*((X==null?void 0:X.widthInColumns)||1)/2}`),se=X.size.x+Pe,X.size.y=ge.size.y-ge.size.height/2+Fe*(xe+e0)+xe/2+e0,Xe.debug(`abc88 layout blocks (calc) px, pyid:${X.id}startingPosX${se}${e0}${Pe}=>x:${X.size.x}y:${X.size.y}${X.widthInColumns}(width * (child?.w || 1)) / 2${W*((X==null?void 0:X.widthInColumns)||1)/2}`)}X.children&&PWe(X),ne+=(X==null?void 0:X.widthInColumns)||1,Xe.debug("abc88 columnsPos",X,ne)}}Xe.debug(`layout blocks (<==layoutBlocks) ${i.id} x: ${(ie=i==null?void 0:i.size)==null?void 0:ie.x} y: ${(oe=i==null?void 0:i.size)==null?void 0:oe.y} width: ${(pe=i==null?void 0:i.size)==null?void 0:pe.width}`)}function BWe(i,{minX:s,minY:u,maxX:d,maxY:p}={minX:0,minY:0,maxX:0,maxY:0}){if(i.size&&i.id!=="root"){const{x:v,y:b,width:y,height:T}=i.size;v-y/2<s&&(s=v-y/2),b-T/2<u&&(u=b-T/2),v+y/2>d&&(d=v+y/2),b+T/2>p&&(p=b+T/2)}if(i.children)for(const v of i.children)({minX:s,minY:u,maxX:d,maxY:p}=BWe(v,{minX:s,minY:u,maxX:d,maxY:p}));return{minX:s,minY:u,maxX:d,maxY:p}}function Lcn(i){const s=i.getBlock("root");if(!s)return;gwe(s,i,0,0),PWe(s),Xe.debug("getBlocks",JSON.stringify(s,null,2));const{minX:u,minY:d,maxX:p,maxY:v}=BWe(s),b=v-d,y=p-u;return{x:u,y:d,width:y,height:b}}const Mcn=Object.freeze(Object.defineProperty({__proto__:null,diagram:{parser:ucn,db:ycn,renderer:{draw:async function(i,s,u,d){const{securityLevel:p,block:v}=Vh(),b=d.db;let y;p==="sandbox"&&(y=Ir("#i"+s));const T=Ir(p==="sandbox"?y.nodes()[0].contentDocument.body:"body"),_=p==="sandbox"?T.select(`[id="${s}"]`):Ir(`[id="${s}"]`);Sme(_,["point","circle","cross"],d.type,s);const P=b.getBlocks(),R=b.getBlocksFlat(),F=b.getEdges(),j=_.insert("g").attr("class","block");await Tcn(j,P,b);const K=Lcn(b);if(await Ccn(j,P,b),await Scn(j,F,R,b,s),K){const ee=K,ie=Math.max(1,Math.round(.125*(ee.width/ee.height))),oe=ee.height+ie+10,pe=ee.width+10,{useMaxWidth:be}=v;Ng(_,oe,pe,!!be),Xe.debug("Here Bounds",K,ee),_.attr("viewBox",`${ee.x-5} ${ee.y-5} ${ee.width+10} ${ee.height+10}`)}_F(zFe)},getClasses:function(i,s){return s.db.getClasses()}},styles:xcn}},Symbol.toStringTag,{value:"Module"}));return um});
 </script>
 <script>
-mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "loose" });
 const sb=document.getElementById('sidebar'),ov=document.getElementById('overlay');
 function toggle(){sb.classList.toggle('aberta');ov.classList.toggle('show');}
 document.getElementById('hamb').onclick=toggle; ov.onclick=toggle;
@@ -2161,7 +2161,7 @@ addEventListener('scroll',()=>vt.classList.toggle('show',scrollY>400));
 <script>(function(){
 const GRAPH_DATA = window.__GRAPH_DATA__ || {group_order:[],nodes:[],links:[]};
 const GROUP_COLORS = window.__GROUP_COLORS__ || {};
-const NODE_GREEN = '#0F6E56';
+const NODE_OURO = '#c6a15b';
 
 const overlay = document.getElementById('graphOverlay');
 const canvas = document.getElementById('graphCanvas');
@@ -2172,7 +2172,7 @@ const legendEl = document.getElementById('graphLegend');
 
 // ---- legenda (tons de verde por categoria) com recolher/expandir ----
 const legendItems = GRAPH_DATA.group_order.map(g=>
-  '<div class="legend-item"><span class="dot" style="background:'+(GROUP_COLORS[g]||NODE_GREEN)+'"></span>'+g+'</div>'
+  '<div class="legend-item"><span class="dot" style="background:'+(GROUP_COLORS[g]||NODE_OURO)+'"></span>'+g+'</div>'
 ).join('');
 legendEl.innerHTML =
   '<div class="legend-head"><span>Categorias</span>'+
@@ -2244,7 +2244,7 @@ function tick(){
     }
   }
   // molas / arestas (escaladas por alpha)
-  const REST=140, K=0.006;
+  const REST=170, K=0.0034;
   links.forEach(l=>{
     const na=l.source, nb=l.target;
     let dx=nb.x-na.x, dy=nb.y-na.y;
@@ -2273,8 +2273,14 @@ function draw(){
     const [x1,y1]=worldToScreen(l.source.x,l.source.y);
     const [x2,y2]=worldToScreen(l.target.x,l.target.y);
     const hl = hoverNode && (l.source===hoverNode || l.target===hoverNode);
-    ctx.strokeStyle = hl ? 'rgba(150,235,205,0.9)' : 'rgba(95,203,175,0.35)';
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.strokeStyle = hl ? 'rgba(234,223,192,0.95)' : 'rgba(198,161,91,0.26)';
+    ctx.lineWidth = hl ? 1.8 : 1;
+    if(hl){ ctx.shadowColor = 'rgba(198,161,91,0.85)'; ctx.shadowBlur = 8; } else { ctx.shadowBlur = 0; }
+    ctx.beginPath(); ctx.moveTo(x1,y1);
+    const mdx=(x1+x2)/2, mdy=(y1+y2)/2, vx=x2-x1, vy=y2-y1;
+    const vao=Math.hypot(vx,vy)||1, curva=Math.min(vao*0.12,26);
+    ctx.quadraticCurveTo(mdx - (vy/vao)*curva, mdy + (vx/vao)*curva, x2, y2);
+    ctx.stroke(); ctx.shadowBlur = 0;
   });
   nodes.forEach(n=>{
     const [x,y]=worldToScreen(n.x,n.y);
@@ -2282,13 +2288,13 @@ function draw(){
     const isHover = n===hoverNode;
     const isHome = n.id==='home';
     ctx.beginPath(); ctx.arc(x,y,Math.max(r,2),0,Math.PI*2);
-    ctx.fillStyle = isHover ? '#ffffff' : (GROUP_COLORS[n.group]||NODE_GREEN);
+    ctx.fillStyle = isHover ? '#eadfc0' : (GROUP_COLORS[n.group]||NODE_OURO);
     ctx.globalAlpha = hoverNode && !isHover && !links.some(l=>(l.source===hoverNode&&l.target===n)||(l.target===hoverNode&&l.source===n)) ? 0.35 : 1;
     ctx.fill();
-    if(isHome){ ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke(); }
+    if(isHome){ ctx.lineWidth=2; ctx.strokeStyle='#eadfc0'; ctx.stroke(); }
     ctx.globalAlpha=1;
     if(scale>0.55 || isHover || n.deg>=6){
-      ctx.fillStyle = isHover ? '#ffffff' : 'rgba(231,243,238,0.82)';
+      ctx.fillStyle = isHover ? '#eadfc0' : 'rgba(234,230,218,0.72)';
       ctx.font = (isHover?'600 ':'')+Math.max(11,11*Math.min(scale,1.3))+'px -apple-system,Segoe UI,Roboto,sans-serif';
       ctx.textAlign='center';
       ctx.fillText(n.label, x, y - r - 6);

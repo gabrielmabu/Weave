@@ -16,18 +16,32 @@ import MarkdownIt from "markdown-it";
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
-// Logo padrão: emoji em SVG, para o template não depender de arquivo externo.
+/**
+ * A marca do Weave: teia radial em dourado sobre preto.
+ *
+ * Vai como SVG embutido num `data:` — o HTML gerado precisa funcionar offline
+ * e sozinho, então nenhum arquivo externo. O traço é grosso de propósito: a
+ * marca vive a 16px na aba do navegador, e desenho fino some nesse tamanho.
+ */
 const LOGO_PADRAO =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
-      '<rect width="100" height="100" rx="20" fill="#0F6E56"/>' +
-      '<text x="50" y="72" font-size="58" text-anchor="middle">🧠</text></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+      '<rect width="32" height="32" rx="7" fill="#08080a"/>' +
+      '<g fill="none" stroke="#c6a15b" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path stroke-width="1.7" d="M16,16L16,3M16,16L27.3,9.5M16,16L27.3,22.5' +
+      'M16,16L16,29M16,16L4.7,22.5M16,16L4.7,9.5"/>' +
+      '<path stroke-width="1.45" d="M16,9.5Q18.5,11.6 21.6,12.8Q21.1,16 21.6,19.3' +
+      "Q18.5,20.4 16,22.5Q13.5,20.4 10.4,19.3Q10.9,16 10.4,12.8Q13.5,11.6 16,9.5" +
+      "M16,5Q20.3,8.6 25.5,10.5Q24.6,16 25.5,21.5Q20.3,23.4 16,27" +
+      'Q11.7,23.4 6.5,21.5Q7.4,16 6.5,10.5Q11.7,8.6 16,5"/></g></svg>',
   );
 
-// Extremos do degradê verde, iguais aos do Anotô original.
-const COR_ESCURA = [0x10, 0x5f, 0x4b];
-const COR_CLARA = [0xa8, 0xef, 0xdd];
+// Extremos do degradê dourado usado nas categorias.
+// Não começa no dourado mais escuro possível: sobre fundo preto, a bolinha de
+// 9px da legenda precisa continuar visível na primeira categoria.
+const COR_ESCURA = [0x9a, 0x78, 0x38];
+const COR_CLARA = [0xea, 0xdf, 0xc0];
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: false });
 
@@ -180,7 +194,7 @@ function escapaHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-/** Interpola o degradê verde conforme a quantidade de grupos. */
+/** Interpola o degradê dourado conforme a quantidade de grupos. */
 function coresPorGrupo(grupos) {
   const cores = {};
   const n = grupos.length;

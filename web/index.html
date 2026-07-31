@@ -3,49 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cortex4U</title>
+<title>Weave</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308080a'/%3E%3Cg fill='none' stroke='%23c6a15b' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath stroke-width='1.7' d='M16,16L16,3M16,16L27.3,9.5M16,16L27.3,22.5M16,16L16,29M16,16L4.7,22.5M16,16L4.7,9.5'/%3E%3Cpath stroke-width='1.45' d='M16,9.5Q18.5,11.6 21.6,12.8Q21.1,16 21.6,19.3Q18.5,20.4 16,22.5Q13.5,20.4 10.4,19.3Q10.9,16 10.4,12.8Q13.5,11.6 16,9.5M16,5Q20.3,8.6 25.5,10.5Q24.6,16 25.5,21.5Q20.3,23.4 16,27Q11.7,23.4 6.5,21.5Q7.4,16 6.5,10.5Q11.7,8.6 16,5'/%3E%3C/g%3E%3C/svg%3E">
 <style>
-:root{--verde:#0F6E56;--verde-claro:#E1F5EE;--fundo:#F4F7F5;--texto:#1A1A1A;
---texto2:#5a6b64;--borda:#e2ebe7;--erro:#E24B4A;--ambar:#E8A020}
+:root{--ouro:#c6a15b;--ouro-claro:#eadfc0;--ouro-fraco:rgba(198,161,91,.13);
+--fundo:#08080a;--carvao:#131316;--texto:#eae6da;--texto2:#8c897e;
+--borda:#23231f;--erro:#E24B4A;--ambar:#E8A020}
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 background:var(--fundo);color:var(--texto);line-height:1.6}
-.topo{background:var(--verde);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px}
+.topo{background:var(--carvao);color:var(--ouro);padding:14px 18px;display:flex;
+align-items:center;gap:10px;border-bottom:1px solid var(--borda)}
 .topo b{font-size:17px}
-.topo span{font-size:12.5px;color:#BFEFE0;margin-left:auto}
+.topo span{font-size:12.5px;color:var(--texto2);margin-left:auto}
+.marca{width:24px;height:24px;flex-shrink:0}
 main{max-width:640px;margin:0 auto;padding:24px 18px 60px}
-.cartao{background:#fff;border:1px solid var(--borda);border-radius:14px;padding:20px;margin-bottom:16px}
+.cartao{background:var(--carvao);border:1px solid var(--borda);border-radius:14px;padding:20px;margin-bottom:16px}
 label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
 .dica{font-size:13px;color:var(--texto2);margin:0 0 10px}
 input[type=password],input[type=text],textarea{width:100%;padding:10px 12px;border:1px solid var(--borda);
-border-radius:10px;font:inherit;font-size:15px;background:#fff}
+border-radius:10px;font:inherit;font-size:15px;background:#0d0d10;color:var(--texto)}
 textarea{resize:vertical;min-height:76px}
-input:focus,textarea:focus{outline:2px solid var(--verde);outline-offset:-1px}
+input:focus,textarea:focus{outline:2px solid var(--ouro);outline-offset:-1px}
 .solta{border:2px dashed var(--borda);border-radius:12px;padding:26px 16px;text-align:center;
-cursor:pointer;transition:.15s;background:#fbfdfc}
-.solta:hover,.solta.sobre{border-color:var(--verde);background:var(--verde-claro)}
-.solta strong{color:var(--verde)}
+cursor:pointer;transition:.15s;background:#0d0d10}
+.solta:hover,.solta.sobre{border-color:var(--ouro);background:var(--ouro-fraco)}
+.solta strong{color:var(--ouro)}
 .solta small{display:block;color:var(--texto2);margin-top:4px}
-button{width:100%;padding:13px;background:var(--verde);color:#fff;border:0;border-radius:10px;
+button{width:100%;padding:13px;background:var(--ouro);color:#08080a;border:0;border-radius:10px;
 font:inherit;font-size:15px;font-weight:600;cursor:pointer}
-button:disabled{opacity:.5;cursor:not-allowed}
+button:hover{background:var(--ouro-claro)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:disabled:hover{background:var(--ouro)}
 .exemplos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .exemplos button{width:auto;padding:5px 11px;font-size:12.5px;font-weight:500;
-background:var(--verde-claro);color:var(--verde);border-radius:20px}
+background:var(--ouro-fraco);color:var(--ouro);border-radius:20px}
+.exemplos button:hover{background:rgba(198,161,91,.24)}
 .andamento{font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;
-background:#0f2b24;color:#d7efe6;border-radius:10px;padding:12px 14px;max-height:230px;
+background:#0d0d10;color:var(--ouro-claro);border:1px solid var(--borda);
+border-radius:10px;padding:12px 14px;max-height:230px;
 overflow-y:auto;white-space:pre-wrap;margin:0}
-.aviso{background:#fff8ec;border:1px solid #f0d9a8;border-left:4px solid var(--ambar);
+.aviso{background:rgba(232,160,32,.09);border:1px solid rgba(232,160,32,.28);
+border-left:4px solid var(--ambar);
 border-radius:0 10px 10px 0;padding:11px 14px;font-size:13.5px;margin:14px 0}
-.falha{background:#fdeeee;border:1px solid #f3c6c6;border-left:4px solid var(--erro);
+.falha{background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);border-left:4px solid var(--erro);
 border-radius:0 10px 10px 0;padding:11px 14px;font-size:13.5px;white-space:pre-wrap}
 .oculto{display:none}
-a.baixar{display:block;text-align:center;padding:13px;background:var(--verde);color:#fff;
+a.baixar{display:block;text-align:center;padding:13px;background:var(--ouro);color:#08080a;
 border-radius:10px;text-decoration:none;font-weight:600}
+a.baixar:hover{background:var(--ouro-claro)}
 </style>
 </head>
 <body>
-<div class="topo"><b>🧠 Cortex4U</b><span>PDF → mapa mental</span></div>
+<div class="topo">
+  <svg class="marca" viewBox="0 0 32 32" fill="none" stroke="#c6a15b"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path stroke-width="1.7" d="M16,16L16,3M16,16L27.3,9.5M16,16L27.3,22.5M16,16L16,29M16,16L4.7,22.5M16,16L4.7,9.5"/>
+    <path stroke-width="1.45" d="M16,9.5Q18.5,11.6 21.6,12.8Q21.1,16 21.6,19.3Q18.5,20.4 16,22.5Q13.5,20.4 10.4,19.3Q10.9,16 10.4,12.8Q13.5,11.6 16,9.5M16,5Q20.3,8.6 25.5,10.5Q24.6,16 25.5,21.5Q20.3,23.4 16,27Q11.7,23.4 6.5,21.5Q7.4,16 6.5,10.5Q11.7,8.6 16,5"/>
+  </svg>
+  <b>Weave</b><span>fontes entrelaçadas em um mapa</span>
+</div>
 <main>
 
   <div class="cartao" id="cartaoEnvio">

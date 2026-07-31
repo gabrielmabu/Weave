@@ -5,10 +5,10 @@
 GitHub e Render fazem coisas diferentes: o GitHub guarda o **código**, o Render **roda o app**. Você usa os dois.
 
 ```bash
-cd C:\Users\gabriel.burgo\Downloads\cortex4u
+cd C:\Users\gabriel.burgo\Downloads\weave
 git init
 git add .
-git commit -m "Cortex4U: PDF para mapa mental"
+git commit -m "Weave: PDF para mapa mental"
 ```
 
 Crie um repositório **privado** no GitHub e siga as instruções de `git remote add` que ele mostra.

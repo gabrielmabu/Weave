@@ -1,9 +1,9 @@
 {
-  "name": "cortex4u",
+  "name": "weave",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Cortex4U — transforma um PDF de estudo num mapa mental navegável.",
+  "description": "Weave — transforma um PDF de estudo num mapa mental navegável.",
   "scripts": {
     "start": "node servidor.mjs",
     "dev": "node servidor.mjs",

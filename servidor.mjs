@@ -1,5 +1,5 @@
 /**
- * servidor.mjs — Cortex4U como aplicação web.
+ * servidor.mjs — Weave como aplicação web.
  *
  * Desenho em duas partes por causa do tempo: uma rodada leva de 5 a 20
  * minutos, e nenhuma requisição HTTP sobrevive a isso sem cair em algum
@@ -199,6 +199,6 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(PORTA, () => {
-  console.log(`Cortex4U ouvindo na porta ${PORTA}`);
+  console.log(`Weave ouvindo na porta ${PORTA}`);
   console.log(`senha de acesso: ${SENHA.length} caracteres (definida por SENHA_ACESSO)`);
 });

@@ -1,9 +1,16 @@
 /**
  * Extrai template.html a partir do Anotô.html.
  *
- * Uso único: lê o HTML original, troca o conteúdo por marcadores e grava o
- * template no projeto Cortex4U. Depois disso o gerador não depende mais do
- * arquivo original.
+ * ⚠️ HISTÓRICO. Este script serviu uma vez, para tirar o esqueleto visual do
+ * Anotô.html. Desde então o template.html RECEBEU A IDENTIDADE DO WEAVE —
+ * paleta preto/dourado, fios curvos, realce em dourado, a marca da teia — e
+ * nada disso existe no arquivo de origem.
+ *
+ * Rodar de novo apagaria tudo isso sem avisar. Por isso o script se recusa a
+ * sobrescrever um template que já tem a identidade aplicada; use --forcar
+ * apenas se souber que quer voltar ao esqueleto cru.
+ *
+ * O template.html é a fonte da verdade agora, não este script.
  *
  * Marcadores criados:
  *   {{TITULO}}        <title> da página
@@ -54,6 +61,20 @@ function confere(linhas, n, trecho, nome) {
 }
 
 if (!existsSync(ORIGEM)) falha(`não achei o arquivo de origem: ${ORIGEM}`);
+
+// Trava contra apagar a identidade sem querer. A alternativa seria só um
+// comentário no topo, e comentário não impede ninguém de rodar o comando.
+if (existsSync(DESTINO) && !process.argv.includes("--forcar")) {
+  const atual = readFileSync(DESTINO, "utf8");
+  if (atual.includes("--ouro:#c6a15b")) {
+    falha(
+      "o template.html atual já tem a identidade do Weave aplicada.\n" +
+        "  Regenerar a partir do Anotô.html descartaria paleta, fios curvos,\n" +
+        "  realce em dourado e a marca — nada disso existe no arquivo de origem.\n" +
+        "  Se é mesmo isso que você quer, rode de novo com --forcar.",
+    );
+  }
+}
 
 const linhas = readFileSync(ORIGEM, "utf8").split("\n");
 

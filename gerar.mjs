@@ -15,7 +15,7 @@ import { render } from "./render.mjs";
 
 function ajuda() {
   console.log(`
-Cortex4U — transforma um PDF de estudo num mapa mental navegável.
+Weave — transforma um PDF de estudo num mapa mental navegável.
 
   node gerar.mjs <arquivo.pdf> [-o saida.html]
   node gerar.mjs --json <arquivo.json> [-o saida.html]
