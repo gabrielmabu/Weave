@@ -21,8 +21,13 @@ main{max-width:640px;margin:0 auto;padding:24px 18px 60px}
 .cartao{background:var(--carvao);border:1px solid var(--borda);border-radius:14px;padding:20px;margin-bottom:16px}
 label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
 .dica{font-size:13px;color:var(--texto2);margin:0 0 10px}
-input[type=password],input[type=text],textarea{width:100%;padding:10px 12px;border:1px solid var(--borda);
+input,textarea{width:100%;padding:10px 12px;border:1px solid var(--borda);
 border-radius:10px;font:inherit;font-size:15px;background:#0d0d10;color:var(--texto)}
+input::placeholder,textarea::placeholder{color:#5a584f}
+/* O preenchimento automático do Chrome pinta o campo de branco por conta
+   própria; sem isto, o formulário escuro ganharia dois retângulos claros. */
+input:-webkit-autofill{-webkit-text-fill-color:var(--texto);
+-webkit-box-shadow:0 0 0 40px #0d0d10 inset}
 textarea{resize:vertical;min-height:76px}
 input:focus,textarea:focus{outline:2px solid var(--ouro);outline-offset:-1px}
 .solta{border:2px dashed var(--borda);border-radius:12px;padding:26px 16px;text-align:center;
@@ -48,6 +53,17 @@ border-left:4px solid var(--ambar);
 border-radius:0 10px 10px 0;padding:11px 14px;font-size:13.5px;margin:14px 0}
 .falha{background:rgba(226,75,74,.1);border:1px solid rgba(226,75,74,.3);border-left:4px solid var(--erro);
 border-radius:0 10px 10px 0;padding:11px 14px;font-size:13.5px;white-space:pre-wrap}
+.abas{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--borda)}
+.aba{width:auto;background:none;color:var(--texto2);border:0;border-bottom:2px solid transparent;
+border-radius:0;padding:8px 14px;font-size:14px;font-weight:500;margin-bottom:-1px}
+.aba:hover{background:none;color:var(--texto)}
+.aba.ativa{color:var(--ouro);border-bottom-color:var(--ouro);font-weight:600}
+.aba.ativa:hover{background:none;color:var(--ouro)}
+.quem{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--texto2);
+padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--borda)}
+.link{width:auto;background:none;color:var(--ouro);padding:0;font-size:13px;
+font-weight:500;margin-left:auto;text-decoration:underline}
+.link:hover{background:none;color:var(--ouro-claro)}
 .oculto{display:none}
 a.baixar{display:block;text-align:center;padding:13px;background:var(--ouro);color:#08080a;
 border-radius:10px;text-decoration:none;font-weight:600}
@@ -65,11 +81,40 @@ a.baixar:hover{background:var(--ouro-claro)}
 </div>
 <main>
 
-  <div class="cartao" id="cartaoEnvio">
-    <label for="senha">Senha</label>
-    <input type="password" id="senha" autocomplete="current-password" placeholder="senha de acesso">
+  <div class="cartao oculto" id="cartaoConta">
+    <div class="abas">
+      <button type="button" class="aba ativa" data-modo="entrar">Entrar</button>
+      <button type="button" class="aba" data-modo="criar">Criar conta</button>
+    </div>
 
-    <label for="objetivo" style="margin-top:16px">Para que serve este mapa?</label>
+    <label for="email">E-mail</label>
+    <input type="email" id="email" autocomplete="email" placeholder="voce@exemplo.com">
+
+    <div class="soCriar oculto">
+      <label for="telefone">Telefone</label>
+      <input type="tel" id="telefone" autocomplete="tel" placeholder="(81) 99999-8888">
+    </div>
+
+    <label for="senha">Senha</label>
+    <input type="password" id="senha" autocomplete="current-password" placeholder="mínimo de 8 caracteres">
+
+    <div class="soCriar oculto">
+      <label for="convite">Código de convite</label>
+      <p class="dica">O Weave é fechado. Peça o código a quem te indicou.</p>
+      <input type="text" id="convite" autocomplete="off" placeholder="código">
+    </div>
+
+    <div id="erroConta" class="falha oculto"></div>
+    <button id="botaoConta">Entrar</button>
+  </div>
+
+  <div class="cartao oculto" id="cartaoEnvio">
+    <div class="quem">
+      <span id="quemSou"></span>
+      <button type="button" id="sair" class="link">sair</button>
+    </div>
+
+    <label for="objetivo">Para que serve este mapa?</label>
     <p class="dica">É o que mais muda o resultado. O mesmo PDF vira mapas diferentes
       conforme o objetivo — muda o que vira nota, como agrupa e o que se conecta.</p>
     <textarea id="objetivo" placeholder="ex.: estudar os conceitos para a prova da OAB"></textarea>
@@ -116,10 +161,83 @@ addEventListener("beforeunload", (e) => {
   e.returnValue = "";
 });
 
-// Senha guardada localmente para não redigitar a cada uso. É a senha do app,
-// não a chave da API — essa nunca sai do servidor.
-$("#senha").value = localStorage.getItem("cortex_senha") || "";
-$("#senha").addEventListener("change", (e) => localStorage.setItem("cortex_senha", e.target.value));
+// ------------------------------------------------------------------- conta
+//
+// A sessão vive num cookie httpOnly posto pelo servidor: o JavaScript daqui
+// não lê nem escreve o token, então nem um script injetado na página consegue
+// roubá-lo. Por isso todo fetch leva `credentials: "same-origin"` e nenhum
+// cabeçalho de senha.
+
+let modo = "entrar";
+
+const mostraConta = (mostrar) => {
+  $("#cartaoConta").classList.toggle("oculto", !mostrar);
+  $("#cartaoEnvio").classList.toggle("oculto", mostrar);
+};
+
+const erroConta = (msg) => {
+  const el = $("#erroConta");
+  el.textContent = msg || "";
+  el.classList.toggle("oculto", !msg);
+};
+
+for (const b of document.querySelectorAll(".aba")) {
+  b.onclick = () => {
+    modo = b.dataset.modo;
+    for (const o of document.querySelectorAll(".aba")) o.classList.toggle("ativa", o === b);
+    for (const c of document.querySelectorAll(".soCriar")) c.classList.toggle("oculto", modo !== "criar");
+    $("#botaoConta").textContent = modo === "criar" ? "Criar conta" : "Entrar";
+    $("#senha").autocomplete = modo === "criar" ? "new-password" : "current-password";
+    erroConta("");
+  };
+}
+
+$("#botaoConta").onclick = async () => {
+  erroConta("");
+  $("#botaoConta").disabled = true;
+  const corpo = {
+    email: $("#email").value.trim(),
+    senha: $("#senha").value,
+    ...(modo === "criar" ? { telefone: $("#telefone").value, convite: $("#convite").value.trim() } : {}),
+  };
+  try {
+    const r = await fetch(modo === "criar" ? "/api/registrar" : "/api/entrar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(corpo),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
+    entrou(j);
+  } catch (e) {
+    erroConta(e.message);
+  } finally {
+    $("#botaoConta").disabled = false;
+  }
+};
+
+function entrou(usuario) {
+  $("#quemSou").textContent = usuario.email;
+  mostraConta(false);
+  $("#senha").value = "";
+  if (jobId) { $("#cartaoEnvio").classList.add("oculto"); $("#cartaoAndamento").classList.remove("oculto"); acompanha(); }
+}
+
+$("#sair").onclick = async () => {
+  await fetch("/api/sair", { method: "POST", credentials: "same-origin" }).catch(() => {});
+  localStorage.removeItem("cortex_job");
+  location.reload();
+};
+
+// Ao abrir a página, pergunta ao servidor se o cookie ainda vale.
+(async () => {
+  try {
+    const r = await fetch("/api/eu", { credentials: "same-origin" });
+    if (r.ok) return entrou(await r.json());
+  } catch { /* servidor fora do ar; cai na tela de entrar */ }
+  mostraConta(true);
+})();
 
 for (const b of document.querySelectorAll(".exemplos button")) {
   b.onclick = () => { $("#objetivo").value = b.dataset.ex; };
@@ -161,7 +279,8 @@ $("#enviar").onclick = async () => {
     // e nenhuma dependência de parsing no servidor.
     const r = await fetch(`/api/jobs?${q}`, {
       method: "POST",
-      headers: { "Content-Type": "application/pdf", "x-senha": $("#senha").value },
+      headers: { "Content-Type": "application/pdf" },
+      credentials: "same-origin",
       body: arquivo,
     });
     const j = await r.json();
@@ -182,7 +301,7 @@ $("#enviar").onclick = async () => {
 async function acompanha() {
   if (!jobId) return;
   try {
-    const r = await fetch(`/api/jobs/${jobId}`, { headers: { "x-senha": $("#senha").value } });
+    const r = await fetch(`/api/jobs/${jobId}`, { credentials: "same-origin" });
     if (r.status === 404) { localStorage.removeItem("cortex_job"); return; }
     const j = await r.json();
 
@@ -196,7 +315,7 @@ async function acompanha() {
       emAndamento = false;
       $("#resultado").innerHTML =
         `<p style="margin:0 0 10px"><strong>${j.notas} notas</strong> em ${j.grupos} grupos.</p>
-         <a class="baixar" href="/api/jobs/${jobId}/html?senha=${encodeURIComponent($("#senha").value)}">Baixar o mapa</a>
+         <a class="baixar" href="/api/jobs/${jobId}/html">Baixar o mapa</a>
          <p class="dica" style="margin-top:10px">Baixe agora — o servidor não guarda o arquivo para sempre.</p>`;
       localStorage.removeItem("cortex_job");
       return;

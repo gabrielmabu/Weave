@@ -46,12 +46,27 @@ No painel do Render, aba **Environment**:
 | Variável | Valor | Observação |
 |---|---|---|
 | `GEMINI_API_KEY` | sua chave | A mesma do `.env` local. **Nunca vai para o repositório.** |
-| `SENHA_ACESSO` | escolha uma | Sem ela o servidor **se recusa a subir**. |
+| `CODIGO_CONVITE` | escolha um | Exigido no cadastro. Sem ele o servidor **se recusa a subir**. |
+| `ADMIN_EMAIL` | seu e-mail | Quem enxerga o log de acesso completo. |
+| `SUPABASE_URL` | do painel Supabase | |
+| `SUPABASE_SERVICE_KEY` | do painel Supabase | A **service_role**, não a anônima. |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | |
 | `NOTAS_POR_LOTE` | `12` | Principal botão de economia. |
 | `TETO_TOKENS_POR_RODADA` | `60000` | Freio de gasto por rodada. |
 | `TETO_PAGINAS` | `60` | |
 | `TETO_MB` | `18` | |
+
+## 3.1 Banco no Supabase
+
+Contas e log de acesso precisam sobreviver a um deploy, e o disco do Render não sobrevive. Por isso o Supabase.
+
+1. Crie um projeto **novo** em [supabase.com](https://supabase.com) — separado do Anotô, como combinado.
+2. **SQL Editor** → cole o conteúdo de [`esquema.sql`](esquema.sql) → *Run*. Cria `usuarios`, `sessoes` e `acessos`.
+3. **Settings → API** → copie a *Project URL* e a chave **`service_role`**.
+
+> A `service_role` ignora todas as regras de permissão do banco. Ela vive só nas variáveis do servidor — nunca no navegador, nunca no repositório. A chave `anon`, que poderia aparecer no cliente, não serve aqui e é barrada pelo RLS ligado no esquema.
+
+Sem essas duas variáveis o servidor sobe assim mesmo, gravando num arquivo local, e avisa no log. Serve para rodar na sua máquina; no Render, cada deploy apagaria os usuários.
 
 ## 4. Usar
 

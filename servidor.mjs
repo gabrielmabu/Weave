@@ -22,6 +22,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { pdfParaNotas, comRelator } from "./ia.mjs";
 import { render } from "./render.mjs";
+import { abreArmazenamento } from "./armazenamento.mjs";
+import {
+  geraHash, conferaSenha, geraToken, expiraEm,
+  validaCadastro, normalizaEmail,
+} from "./auth.mjs";
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const TRABALHO = join(AQUI, "trabalho");
@@ -29,8 +34,8 @@ mkdirSync(TRABALHO, { recursive: true });
 
 const app = express();
 const PORTA = process.env.PORT || 3000;
-const SENHA = process.env.SENHA_ACESSO || "";
 const TETO_MB = Number(process.env.TETO_MB ?? 18);
+const dados = abreArmazenamento();
 
 // ------------------------------------------------------------------ estado
 
@@ -45,10 +50,10 @@ const jobs = new Map();
 const fila = [];
 let rodando = false;
 
-const criaJob = (nome, objetivo) => {
+const criaJob = (nome, objetivo, usuarioId) => {
   const id = randomUUID().slice(0, 8);
   jobs.set(id, {
-    id, nome, objetivo,
+    id, nome, objetivo, usuarioId,
     estado: "na fila",
     progresso: [],
     criadoEm: Date.now(),
@@ -87,21 +92,38 @@ async function processa(id) {
   const html = join(TRABALHO, `${id}.html`);
 
   try {
-    const dados = await comRelator(anota, () =>
+    // Chamado `mapa`, não `dados`: no escopo do módulo `dados` é o
+    // armazenamento, e sombreá-lo aqui faria o log de acesso escrever no
+    // objeto errado sem erro nenhum.
+    const mapa = await comRelator(anota, () =>
       pdfParaNotas(pdf, {
         objetivo: job.objetivo,
         checkpoint: join(TRABALHO, `${id}.checkpoint.json`),
       }),
     );
-    writeFileSync(html, render(dados), "utf8");
-    job.notas = dados.notas.length;
-    job.grupos = dados.grupos.length;
-    job.titulo = dados.titulo;
+    writeFileSync(html, render(mapa), "utf8");
+    job.notas = mapa.notas.length;
+    job.grupos = mapa.grupos.length;
+    job.titulo = mapa.titulo;
     job.estado = "pronto";
   } catch (e) {
     job.estado = "erro";
     job.erro = e.message;
   } finally {
+    // O gasto real só se conhece no fim; é ele que diz quem consumiu o quê do
+    // saldo dividido com o Anotô.
+    const gasto = job.progresso.join(" ").match(/([\d.]+) tokens de entrada · ([\d.]+) de saída/);
+    const num = (s) => Number(String(s).replace(/\./g, "")) || null;
+    dados
+      .atualizaAcesso(id, {
+        estado: job.estado,
+        notas: job.notas ?? null,
+        erro: job.erro,
+        tokens_entrada: gasto ? num(gasto[1]) : null,
+        tokens_saida: gasto ? num(gasto[2]) : null,
+      })
+      .catch((e) => console.error(`log de acesso falhou: ${e.message}`));
+
     // O PDF não precisa sobreviver ao processamento.
     try { if (existsSync(pdf)) unlinkSync(pdf); } catch { /* segue */ }
   }
@@ -110,30 +132,130 @@ async function processa(id) {
 // -------------------------------------------------------------------- auth
 
 /**
- * Senha única compartilhada.
+ * Sessão por usuário, substituindo a senha única que existia antes.
  *
- * Não é sofisticado, e o alvo não é sofisticado: impedir que a URL vazada num
- * encaminhamento de WhatsApp vire uma torneira aberta no saldo pré-pago.
- * Sem SENHA_ACESSO definida o servidor se recusa a subir — um app sem senha
- * exposto na internet gastaria dinheiro de verdade de quem o achasse.
+ * O token vem no cabeçalho ou num cookie httpOnly. O cookie existe por causa
+ * do download: `<a href>` não carrega cabeçalho, e mandar o token na query
+ * string o deixaria no histórico do navegador e no log de qualquer proxy.
  */
-if (!SENHA) {
-  console.error(
-    "ERRO: defina SENHA_ACESSO antes de subir.\n" +
-      "  Sem senha, qualquer um que ache a URL gasta o seu saldo do Gemini.",
-  );
-  process.exit(1);
+async function autoriza(req, res, next) {
+  const token =
+    req.get("x-sessao") ||
+    (req.get("cookie") ?? "").match(/(?:^|;\s*)weave_sessao=([^;]+)/)?.[1] ||
+    "";
+  if (!token) return res.status(401).json({ erro: "não autenticado" });
+
+  let sessao;
+  try {
+    sessao = await dados.achaSessao(token);
+  } catch (e) {
+    return res.status(503).json({ erro: `banco indisponível: ${e.message}` });
+  }
+  if (!sessao) return res.status(401).json({ erro: "sessão expirada ou inválida" });
+
+  req.usuario = sessao.usuario;
+  req.sessao = token;
+  next();
 }
 
-const autoriza = (req, res, next) => {
-  const enviada = req.get("x-senha") || req.query.senha || "";
-  if (enviada === SENHA) return next();
-  res.status(401).json({ erro: "senha incorreta" });
-};
+const cookieDeSessao = (token, expira) =>
+  `weave_sessao=${token}; HttpOnly; SameSite=Strict; Path=/; Expires=${new Date(expira).toUTCString()}` +
+  // Secure só quando há HTTPS: em localhost o navegador descartaria o cookie.
+  (process.env.NODE_ENV === "production" ? "; Secure" : "");
 
 // ------------------------------------------------------------------- rotas
 
 app.use(express.static(join(AQUI, "web")));
+app.use(express.json({ limit: "16kb" }));
+
+/**
+ * Código de convite no cadastro.
+ *
+ * Sem ele, trocar a senha única por contas seria uma piora: antes a senha
+ * barrava tudo; com cadastro livre, quem achasse a URL criaria conta e gastaria
+ * o saldo pré-pago dividido com o Anotô. O código faz o mesmo papel da senha
+ * antiga — separar conhecidos de desconhecidos — só que uma vez por pessoa, em
+ * vez de a cada acesso.
+ */
+const CONVITE = process.env.CODIGO_CONVITE || "";
+if (!CONVITE) {
+  console.error(
+    "ERRO: defina CODIGO_CONVITE antes de subir.\n" +
+      "  Sem ele, qualquer um que ache a URL cria conta e gasta o seu saldo do Gemini.",
+  );
+  process.exit(1);
+}
+
+app.post("/api/registrar", async (req, res) => {
+  if ((req.body?.convite ?? "") !== CONVITE) {
+    return res.status(403).json({ erro: "código de convite inválido" });
+  }
+
+  const { erros, email, telefone } = validaCadastro(req.body ?? {});
+  if (erros.length) return res.status(400).json({ erro: erros.join("; ") });
+
+  try {
+    const senha_hash = await geraHash(req.body.senha);
+    const usuario = await dados.criaUsuario({ email, telefone, senha_hash });
+    const token = geraToken();
+    const expira = expiraEm();
+    await dados.criaSessao({ token, usuario_id: usuario.id, expira_em: expira });
+
+    res.setHeader("Set-Cookie", cookieDeSessao(token, expira));
+    res.status(201).json({ email: usuario.email, telefone: usuario.telefone });
+  } catch (e) {
+    if (e.duplicado) return res.status(409).json({ erro: "este e-mail já tem cadastro" });
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+app.post("/api/entrar", async (req, res) => {
+  const email = normalizaEmail(req.body?.email);
+  const senha = req.body?.senha;
+
+  const usuario = await dados.achaUsuarioPorEmail(email).catch(() => null);
+  const ok = usuario ? await conferaSenha(senha, usuario.senha_hash) : false;
+
+  // Mesma mensagem para e-mail inexistente e senha errada: dizer qual dos dois
+  // falhou entregaria de graça a lista de quem tem cadastro.
+  if (!ok) return res.status(401).json({ erro: "e-mail ou senha incorretos" });
+
+  const token = geraToken();
+  const expira = expiraEm();
+  await dados.criaSessao({ token, usuario_id: usuario.id, expira_em: expira });
+
+  res.setHeader("Set-Cookie", cookieDeSessao(token, expira));
+  res.json({ email: usuario.email, telefone: usuario.telefone });
+});
+
+app.post("/api/sair", autoriza, async (req, res) => {
+  await dados.apagaSessao(req.sessao);
+  res.setHeader("Set-Cookie", "weave_sessao=; HttpOnly; Path=/; Max-Age=0");
+  res.status(204).end();
+});
+
+app.get("/api/eu", autoriza, (req, res) => {
+  res.json({ email: req.usuario.email, telefone: req.usuario.telefone });
+});
+
+/**
+ * Log de acesso.
+ *
+ * Cada pessoa vê o próprio histórico. O log completo — quem entrou, o que
+ * mandou, quanto gastou — fica com quem estiver em ADMIN_EMAIL. Sem esse
+ * recorte, um usuário leria o nome dos arquivos que os outros enviaram.
+ */
+const ADMIN = normalizaEmail(process.env.ADMIN_EMAIL ?? "");
+
+app.get("/api/acessos", autoriza, async (req, res) => {
+  const ehAdmin = ADMIN && req.usuario.email === ADMIN;
+  try {
+    const todos = await dados.listaAcessos({ limite: 200 });
+    res.json(ehAdmin ? todos : todos.filter((a) => a.usuario_id === req.usuario.id));
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
 
 app.post(
   "/api/jobs",
@@ -150,8 +272,21 @@ app.post(
     const objetivo = (req.query.objetivo || "").toString().slice(0, 500);
     const nome = (req.query.nome || "documento.pdf").toString().slice(0, 120);
 
-    const id = criaJob(nome, objetivo);
+    const id = criaJob(nome, objetivo, req.usuario.id);
     writeFileSync(join(TRABALHO, `${id}.pdf`), req.body);
+
+    // O log entra aqui, no envio, e não ao terminar: se o trabalho falhar ou o
+    // servidor cair no meio, você ainda precisa saber que alguém mandou aquilo.
+    dados
+      .registraAcesso({
+        usuario_id: req.usuario.id,
+        job_id: id,
+        arquivo: nome,
+        tamanho_bytes: req.body.length,
+        objetivo,
+        estado: "na fila",
+      })
+      .catch((e) => console.error(`log de acesso falhou: ${e.message}`));
 
     fila.push(id);
     const posicao = fila.length;
@@ -161,8 +296,22 @@ app.post(
   },
 );
 
-app.get("/api/jobs/:id", autoriza, (req, res) => {
+/**
+ * Só o dono enxerga o próprio trabalho.
+ *
+ * Com a senha única isso não importava — todo mundo era a mesma pessoa. Agora
+ * que há contas, um id de 8 caracteres seria suficiente para alguém ler ou
+ * baixar o mapa de outro. Responde 404, e não 403, para não confirmar que o
+ * id existe.
+ */
+const meuJob = (req, res) => {
   const job = jobs.get(req.params.id);
+  if (!job || job.usuarioId !== req.usuario.id) return null;
+  return job;
+};
+
+app.get("/api/jobs/:id", autoriza, (req, res) => {
+  const job = meuJob(req, res);
   if (!job) return res.status(404).json({ erro: "job não encontrado" });
   res.json({
     id: job.id,
@@ -177,7 +326,7 @@ app.get("/api/jobs/:id", autoriza, (req, res) => {
 });
 
 app.get("/api/jobs/:id/html", autoriza, (req, res) => {
-  const job = jobs.get(req.params.id);
+  const job = meuJob(req, res);
   if (!job) return res.status(404).send("job não encontrado");
   if (job.estado !== "pronto") return res.status(409).send(`job está em: ${job.estado}`);
 
@@ -200,5 +349,13 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORTA, () => {
   console.log(`Weave ouvindo na porta ${PORTA}`);
-  console.log(`senha de acesso: ${SENHA.length} caracteres (definida por SENHA_ACESSO)`);
+  console.log(`armazenamento: ${dados.tipo}`);
+  if (dados.tipo === "local") {
+    console.warn(
+      "  ATENÇÃO: sem SUPABASE_URL/SUPABASE_SERVICE_KEY, os dados vão para um\n" +
+        "  arquivo em trabalho/. No Render esse disco é apagado a cada deploy —\n" +
+        "  usuários e log de acesso sumiriam junto. Serve para rodar aqui, não lá.",
+    );
+  }
+  console.log(ADMIN ? `admin: ${ADMIN}` : "admin: nenhum (defina ADMIN_EMAIL para ver o log completo)");
 });
