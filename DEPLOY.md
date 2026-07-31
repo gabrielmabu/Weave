@@ -49,7 +49,7 @@ No painel do Render, aba **Environment**:
 | `CODIGO_CONVITE` | escolha um | Exigido no cadastro. Sem ele o servidor **se recusa a subir**. |
 | `ADMIN_EMAIL` | seu e-mail | Quem enxerga o log de acesso completo. |
 | `SUPABASE_URL` | do painel Supabase | |
-| `SUPABASE_SERVICE_KEY` | do painel Supabase | A **service_role**, não a anônima. |
+| `SUPABASE_SERVICE_KEY` | do painel Supabase | A **Secret key** (`sb_secret_...`), não a Publishable. |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | |
 | `NOTAS_POR_LOTE` | `12` | Principal botão de economia. |
 | `TETO_TOKENS_POR_RODADA` | `60000` | Freio de gasto por rodada. |
@@ -62,9 +62,9 @@ Contas e log de acesso precisam sobreviver a um deploy, e o disco do Render não
 
 1. Crie um projeto **novo** em [supabase.com](https://supabase.com) — separado do Anotô, como combinado.
 2. **SQL Editor** → cole o conteúdo de [`esquema.sql`](esquema.sql) → *Run*. Cria `usuarios`, `sessoes` e `acessos`.
-3. **Settings → API** → copie a *Project URL* e a chave **`service_role`**.
+3. **Settings → API** → copie a *Project URL* e, em **Secret keys**, a chave `sb_secret_...`.
 
-> A `service_role` ignora todas as regras de permissão do banco. Ela vive só nas variáveis do servidor — nunca no navegador, nunca no repositório. A chave `anon`, que poderia aparecer no cliente, não serve aqui e é barrada pelo RLS ligado no esquema.
+> A Secret key ignora todas as regras de permissão do banco. Ela vive só nas variáveis do servidor — nunca no navegador, nunca no repositório. A Publishable key, que pode aparecer no navegador, não serve aqui — o RLS ligado no esquema a barra.
 
 Sem essas duas variáveis o servidor sobe assim mesmo, gravando num arquivo local, e avisa no log. Serve para rodar na sua máquina; no Render, cada deploy apagaria os usuários.
 

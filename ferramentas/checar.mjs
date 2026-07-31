@@ -70,16 +70,30 @@ if (!url || !chave) {
   ok(`SUPABASE_URL = ${url}`);
   ok(`SUPABASE_SERVICE_KEY definida (${chave.length} caracteres)`);
 
-  // A anônima também autentica, mas o RLS do esquema bloqueia tudo por ela —
-  // o app subiria e falharia só na primeira gravação, o que é pior.
-  try {
-    const papel = JSON.parse(
-      Buffer.from(chave.split(".")[1] ?? "", "base64").toString("utf8"),
-    ).role;
-    if (papel === "service_role") ok("é a chave service_role, como deve ser");
-    else erro(`a chave é '${papel}', não service_role — o RLS vai barrar tudo`);
-  } catch {
-    console.log("  ~ não consegui ler o papel da chave (formato inesperado)");
+  // A chave pública também autentica, mas o RLS do esquema bloqueia tudo por
+  // ela — o app subiria e falharia só na primeira gravação, o que é pior do
+  // que falhar agora.
+  //
+  // O Supabase tem dois formatos em circulação: o novo (sb_secret_ /
+  // sb_publishable_, opacos) e o antigo (JWT com o papel dentro). O painel
+  // hoje mostra o novo por padrão e esconde o antigo numa aba "Legacy".
+  if (chave.startsWith("sb_secret_")) {
+    ok("é uma Secret key (substitui a antiga service_role)");
+  } else if (chave.startsWith("sb_publishable_")) {
+    erro("é a Publishable key — o RLS vai barrar tudo");
+    nota("use a de 'Secret keys', logo abaixo na mesma página do painel");
+  } else if (chave.split(".").length === 3) {
+    try {
+      const papel = JSON.parse(
+        Buffer.from(chave.split(".")[1], "base64").toString("utf8"),
+      ).role;
+      if (papel === "service_role") ok("é a service_role legada, serve");
+      else erro(`a chave é '${papel}', não service_role — o RLS vai barrar tudo`);
+    } catch {
+      console.log("  ~ chave em formato JWT, mas não consegui ler o papel");
+    }
+  } else {
+    console.log("  ~ formato de chave não reconhecido; o teste abaixo dirá se serve");
   }
 
   const cabecalhos = { apikey: chave, Authorization: `Bearer ${chave}` };
