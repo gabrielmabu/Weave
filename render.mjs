@@ -60,6 +60,107 @@ function saneiaMermaid(codigo) {
   return saida;
 }
 
+/**
+ * Converte tabela escrita em HTML para tabela markdown.
+ *
+ * O modelo às vezes devolve `<table><tr><th>...` em vez do formato markdown.
+ * Como o markdown-it roda com `html: false`, essas tags são escapadas e a
+ * pessoa vê `&lt;table&gt;` como texto na tela — foi o defeito relatado.
+ *
+ * A correção óbvia seria ligar `html: true`, e ela é a errada: o conteúdo vem
+ * de um modelo lendo o PDF de um terceiro, e um PDF pode carregar instruções
+ * que façam o modelo emitir `<script>`. Aqui se converte só o que se
+ * reconhece, e o resto continua escapado.
+ */
+function tabelasHtmlParaMarkdown(texto) {
+  const inline = (s) =>
+    s
+      .replace(/<\s*br\s*\/?\s*>/gi, " ")
+      .replace(/<\/?\s*(strong|b)\s*>/gi, "**")
+      .replace(/<\/?\s*(em|i)\s*>/gi, "*")
+      .replace(/<\/?\s*code\s*>/gi, "`")
+      .replace(/<[^>]*>/g, "") // qualquer outra tag some
+      .replace(/\|/g, "\\|") // pipe no texto quebraria a coluna
+      .replace(/\s+/g, " ")
+      .trim();
+
+  return texto.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (todo, dentro) => {
+    const linhas = [...dentro.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) =>
+      [...m[1].matchAll(/<(t[hd])[^>]*>([\s\S]*?)<\/\1>/gi)].map((c) => inline(c[2])),
+    );
+    if (linhas.length < 2) return todo; // não parece tabela; deixa como está
+
+    const colunas = Math.max(...linhas.map((l) => l.length));
+    const preenche = (l) => [...l, ...Array(colunas - l.length).fill("")];
+    const [cabecalho, ...corpo] = linhas.map(preenche);
+
+    return (
+      "\n\n" +
+      `| ${cabecalho.join(" | ")} |\n` +
+      `|${" --- |".repeat(colunas)}\n` +
+      corpo.map((l) => `| ${l.join(" | ")} |`).join("\n") +
+      "\n\n"
+    );
+  });
+}
+
+/**
+ * Reconstrói os blocos de markdown quando o modelo devolveu tudo numa linha só.
+ *
+ * Sem `\n`, o markdown-it trata o conteúdo inteiro como um parágrafo: aplica as
+ * regras inline (negrito vira `<strong>`) e ignora as de bloco, então `##` e
+ * `1.` ficam como texto literal na tela. Medido no material da Prof. Nelma:
+ * 12 das 29 notas voltaram assim.
+ *
+ * Só é chamada para conteúdo comprovadamente sem quebras — as heurísticas aqui
+ * são agressivas de propósito, e aplicá-las a texto íntegro criaria quebras
+ * onde não deve.
+ */
+function reconstroiBlocos(texto) {
+  const minuscula = "a-záàâãéêíóôõúüç";
+  const maiuscula = "A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ";
+
+  return (
+    texto
+      // "...fundamentais.## Classificação" → quebra antes do título
+      .replace(new RegExp(`([^\\n])(#{2,6}\\s+)`, "g"), "$1\n\n$2")
+      // "## Classificação do Direito ConstitucionalO Direito..." → o título
+      // termina onde uma minúscula encosta numa maiúscula sem espaço, que é
+      // exatamente onde a quebra de linha foi removida.
+      .replace(
+        new RegExp(`(\\n#{2,6} [^\\n]*?[${minuscula}])([${maiuscula}])`, "g"),
+        "$1\n\n$2",
+      )
+      // "três tipos:1.  Direito..." → item de lista numerada
+      .replace(
+        new RegExp(`([^\\n\\d])(\\d{1,2}\\.\\s+)(?=[*\`${maiuscula}])`, "g"),
+        "$1\n$2",
+      )
+      // "...são:- Primeira" → item de lista com marcador
+      .replace(new RegExp(`([:.;])\\s*([-*]\\s+)(?=[*\`${maiuscula}])`, "g"), "$1\n$2")
+      .replace(/\n{3,}/g, "\n\n")
+  );
+}
+
+/**
+ * Deixa o markdown do modelo em forma antes de renderizar.
+ *
+ * Segue a regra que este projeto já aprendeu duas vezes: o prompt pede o
+ * formato certo, mas quem garante é o código. Saída de modelo é imprevisível
+ * por natureza, e o custo de uma nota ilegível é alto demais para depender
+ * só de instrução.
+ */
+function normalizaMarkdown(texto) {
+  const t = String(texto ?? "");
+
+  // Detecta ANTES de converter tabelas, porque a conversão insere quebras e
+  // apagaria a evidência de que o conteúdo veio quebrado.
+  const semQuebras = !t.includes("\n") && t.length > 200;
+
+  const comTabelas = tabelasHtmlParaMarkdown(t);
+  return semQuebras ? reconstroiBlocos(comTabelas) : comTabelas;
+}
+
 // O template estiliza `pre.mermaid` e o mermaid.initialize() procura essa
 // classe. Sem esta regra os diagramas sairiam como bloco de código comum.
 md.renderer.rules.fence = (tokens, idx, _opts, _env, self) => {
@@ -211,7 +312,7 @@ function montaHome(dados) {
 function montaSecoes(dados) {
   const notas = dados.notas
     .map((n) => {
-      const corpo = md.render(n.conteudo ?? "");
+      const corpo = md.render(normalizaMarkdown(n.conteudo));
       const relacionadas = (n.relacionado ?? [])
         .map((alvo) => {
           const outra = dados.notas.find((x) => x.id === alvo);

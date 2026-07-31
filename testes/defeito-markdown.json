@@ -1,0 +1,30 @@
+{
+  "titulo": "Regressão — markdown quebrado",
+  "subtitulo": "conteúdo real capturado do defeito relatado em 30/07/2026",
+  "grupos": [
+    "01 - Quebrado",
+    "02 - Controle"
+  ],
+  "notas": [
+    {
+      "id": "sem-quebras",
+      "titulo": "Nota sem quebras de linha",
+      "grupo": "01 - Quebrado",
+      "resumo": "conteúdo real que voltou numa linha só, com tabela em HTML",
+      "relacionado": [
+        "controle-intacto"
+      ],
+      "conteudo": "O **Direito Constitucional** é o ramo do direito público que estuda as normas supremas e estruturantes do Estado. Sua função é interpretar as normas constitucionais, regulamentar e delimitar o poder estatal, e garantir os direitos fundamentais.## Classificação do Direito ConstitucionalO Direito Constitucional pode ser classificado em três tipos:1.  **Direito Constitucional Positivo**: Estuda uma constituição específica.2.  **Direito Constitucional Comparado**: Compara duas ou mais constituições.3.  **Direito Constitucional Geral**: Estuda elementos e conceitos comuns a todas as constituições.## Fontes do Direito ConstitucionalAs fontes do Direito Constitucional são:<table><thead><tr><th>Fonte</th><th>Descrição</th></tr></thead><tbody><tr><td>Constituição</td><td>Lei suprema do Estado, base de todas as outras normas.</td></tr><tr><td>Costume constitucional</td><td>Refere-se a direitos fundamentais, estrutura e organização do poder.</td></tr><tr><td>Jurisprudência</td><td>Normas de decisão construídas por magistrados para casos concretos, devido a leis imprecisas.</td></tr><tr><td>Doutrina</td><td>Descrição e análise do direito vigente, com propostas para problemas jurídicos.</td></tr></tbody></table>"
+    },
+    {
+      "id": "controle-intacto",
+      "titulo": "Nota íntegra (controle)",
+      "grupo": "02 - Controle",
+      "resumo": "veio correta do modelo; a normalização não pode alterá-la",
+      "relacionado": [
+        "sem-quebras"
+      ],
+      "conteudo": "O **Princípio do Juiz Natural** é uma garantia fundamental que assegura a imparcialidade e a competência do órgão jurisdicional. Ele se manifesta em duas dimensões:\n\n```mermaid\nflowchart TD\n    A[Princípio do Juiz Natural] --> B{Duas Faces}\n    B --> C[Órgão Jurisdicional]\n    B --> D[Pessoa do Juiz]\n    C --> C1[Sentido Formal]\n    D --> D1[Sentido Material]\n    C1 --> C1a[Proibição Tribunais Exceção]\n    C1 --> C1b[Respeito Competência]\n    D1 --> D1a[Imparcialidade Juiz]\n    D1 --> D1b[Suspeição e Impedimento]\n```\n\n## Sentido Formal\nRefere-se ao **órgão jurisdicional** e garante:\n*   A proibição da existência de **Tribunais de exceção**, assegurando que ninguém será julgado por um tribunal criado especificamente para um caso.\n*   O respeito às regras de **competência**, conforme o art. **5º, LIII**, da CF, que estabelece que \"ninguém será processado nem sentenciado senão pela **autoridade competente**\".\n\n## Sentido Material\nDiz respeito à **pessoa do juiz** e à sua **imparcialidade**. Garante:\n*   A **imparcialidade do juiz** na condução e julgamento do processo.\n*   A possibilidade de alegar razões de **suspeição e impedimento** contra o juiz, conforme os arts. **144 e 145** do CPC/2015, para assegurar que o magistrado não tenha vínculos que comprometam sua neutralidade.\n\nEm suma, o Juiz Natural é aquele que possui **competência constitucional** e foi **investido de maneira regular na jurisdição**."
+    }
+  ]
+}
