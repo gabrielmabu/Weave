@@ -212,10 +212,10 @@ transition:stroke-dashoffset .9s ease-out}
 
     <label for="arquivo" style="margin-top:18px">Arquivo</label>
     <div class="solta" id="solta">
-      <strong>Escolher PDF</strong>
-      <small id="nomeArquivo">ou arraste aqui · até 18 MB</small>
+      <strong>Escolher arquivo</strong>
+      <small id="nomeArquivo">PDF, Word, planilha ou texto · até 18 MB</small>
     </div>
-    <input type="file" id="arquivo" accept="application/pdf,.pdf" class="oculto">
+    <input type="file" id="arquivo" accept=".pdf,.txt,.md,.csv,.xlsx,.docx" class="oculto">
 
     <div class="aviso"><strong>Deixe esta aba aberta.</strong> Leva de 5 a 20 minutos,
       conforme o tamanho. É a própria tela que mantém o servidor acordado enquanto
@@ -446,11 +446,20 @@ for (const b of document.querySelectorAll(".exemplos button")) {
   b.onclick = () => { $("#objetivo").value = b.dataset.ex; };
 }
 
+// Mesma lista do fontes.mjs. Conferir aqui não substitui a conferência do
+// servidor — é só para o erro aparecer antes de subir 18 MB à toa.
+const ACEITOS = [".pdf", ".txt", ".md", ".csv", ".xlsx", ".docx"];
+const aceito = (nome) => ACEITOS.some((e) => nome.toLowerCase().endsWith(e));
+
 const marcaArquivo = (f) => {
+  if (f && !aceito(f.name)) {
+    alert(`Não sei ler esse arquivo. Aceito: ${ACEITOS.join(", ")}`);
+    return;
+  }
   arquivo = f;
   $("#nomeArquivo").textContent = f
     ? `${f.name} · ${(f.size / 1024 / 1024).toFixed(1)} MB`
-    : "ou arraste aqui · até 18 MB";
+    : "PDF, Word, planilha ou texto · até 18 MB";
   $("#enviar").disabled = !f;
 };
 
@@ -464,7 +473,7 @@ for (const ev of ["dragleave", "drop"]) {
 }
 $("#solta").addEventListener("drop", (e) => {
   const f = e.dataTransfer.files[0];
-  if (f && /pdf$/i.test(f.name)) marcaArquivo(f);
+  if (f) marcaArquivo(f);
 });
 
 $("#enviar").onclick = async () => {

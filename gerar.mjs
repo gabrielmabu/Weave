@@ -94,12 +94,18 @@ async function main() {
       throw new Error(`${args.json} não é JSON válido: ${e.message}`);
     }
   } else {
-    const { pdfParaNotas, estimativa } = await import("./ia.mjs");
+    const { fontesParaNotas, estimativa } = await import("./ia.mjs");
 
     // --estimar responde "quanto isso vai custar?" sem gastar nada.
     if (args.estimar) {
       const e = await estimativa(args.entrada, { paginas: args.paginas, lote: args.lote });
-      console.log(`\n${e.paginas} páginas · ${e.mb.toFixed(1)} MB`);
+      const tamanho = [
+        e.paginas ? `${e.paginas} páginas · ${e.mb.toFixed(1)} MB` : "",
+        // Para fonte de texto o número é exato, não estimado: o arquivo já foi
+        // convertido aqui e o tamanho é conhecido antes de qualquer chamada.
+        e.caracteres ? `${e.caracteres.toLocaleString("pt-BR")} caracteres de texto` : "",
+      ].filter(Boolean).join(" · ");
+      console.log(`\n${tamanho}`);
       console.log(`~${e.tokensPorChamada.toLocaleString("pt-BR")} tokens de entrada por chamada`);
       console.log(`estimativa para ${e.notasEstimadas} notas em lotes de ${e.lote}:`);
       console.log(`  ~${e.chamadas} chamadas · ~${e.tokensTotais.toLocaleString("pt-BR")} tokens de entrada\n`);
@@ -109,7 +115,7 @@ async function main() {
     // Checkpoint ao lado da saída: se uma chamada falhar no meio, a próxima
     // execução retoma de onde parou em vez de repagar o que já deu certo.
     const saidaPrevista = args.saida ?? `${basename(fonte, extname(fonte))}.html`;
-    dados = await pdfParaNotas(args.entrada, {
+    dados = await fontesParaNotas(args.entrada, {
       checkpoint: `${saidaPrevista.replace(/\.html?$/i, "")}.checkpoint.json`,
       paginas: args.paginas,
       lote: args.lote,

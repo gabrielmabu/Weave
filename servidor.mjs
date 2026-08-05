@@ -20,10 +20,11 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import { pdfParaNotas, comRelator } from "./ia.mjs";
+import { dirname, join, extname } from "node:path";
+import { fontesParaNotas, comRelator } from "./ia.mjs";
 import { render, mermaidDoTemplate } from "./render.mjs";
 import { normalizaMapa, valida, sha1 } from "./mapa.mjs";
+import { aceita, EXTENSOES_ACEITAS } from "./fontes.mjs";
 import { abreArmazenamento } from "./armazenamento.mjs";
 import {
   geraHash, conferaSenha, geraToken, expiraEm,
@@ -61,7 +62,7 @@ let rodando = false;
 const criaJob = ({ nome, nomeTeia, objetivo, foco, usuarioId }) => {
   const id = randomUUID().slice(0, 8);
   jobs.set(id, {
-    id, nome, nomeTeia, objetivo, foco, usuarioId,
+    id, nome, nomeTeia, objetivo, foco, usuarioId, arquivo: null,
     estado: "na fila",
     progresso: [],
     criadoEm: Date.now(),
@@ -101,14 +102,14 @@ async function processa(id) {
     if (linha) job.progresso.push(linha);
   };
 
-  const pdf = join(TRABALHO, `${id}.pdf`);
+  const arquivo = job.arquivo;
 
   try {
     // Chamado `mapa`, não `dados`: no escopo do módulo `dados` é o
     // armazenamento, e sombreá-lo aqui faria o log de acesso escrever no
     // objeto errado sem erro nenhum.
     const bruto = await comRelator(anota, () =>
-      pdfParaNotas(pdf, {
+      fontesParaNotas([{ caminho: arquivo, nome: job.nome }], {
         objetivo: job.objetivo,
         checkpoint: join(TRABALHO, `${id}.checkpoint.json`),
       }),
@@ -117,7 +118,7 @@ async function processa(id) {
     const mapa = normalizaMapa(bruto, {
       nome: job.nome,
       quando: new Date().toISOString(),
-      hash: sha1(readFileSync(pdf)),
+      hash: sha1(readFileSync(arquivo)),
     });
     const erros = valida(mapa);
     if (erros.length) throw new Error(`mapa inválido:\n  - ${erros.join("\n  - ")}`);
@@ -166,8 +167,8 @@ async function processa(id) {
       })
       .catch((e) => console.error(`log de acesso falhou: ${e.message}`));
 
-    // O PDF não precisa sobreviver ao processamento.
-    try { if (existsSync(pdf)) unlinkSync(pdf); } catch { /* segue */ }
+    // O arquivo enviado não precisa sobreviver ao processamento.
+    try { if (existsSync(arquivo)) unlinkSync(arquivo); } catch { /* segue */ }
   }
 }
 
@@ -302,22 +303,30 @@ app.get("/api/acessos", autoriza, async (req, res) => {
 app.post(
   "/api/jobs",
   autoriza,
-  express.raw({ type: "application/pdf", limit: `${TETO_MB}mb` }),
+  // `type: () => true` porque o corpo agora pode ser planilha, DOCX ou texto,
+  // e nem todo navegador acerta o Content-Type de arquivo escolhido pelo
+  // usuário. Quem decide o formato é a extensão do nome, conferida abaixo.
+  express.raw({ type: () => true, limit: `${TETO_MB}mb` }),
   (req, res) => {
-    if (!req.body?.length) {
-      return res.status(400).json({ erro: "corpo vazio — envie o PDF como application/pdf" });
-    }
-    if (req.body.subarray(0, 5).toString("latin1") !== "%PDF-") {
-      return res.status(400).json({ erro: "o arquivo não parece um PDF" });
-    }
+    if (!req.body?.length) return res.status(400).json({ erro: "corpo vazio" });
 
     const objetivo = (req.query.objetivo || "").toString().slice(0, 500);
     const foco = (req.query.foco || "").toString().slice(0, 500);
     const nome = (req.query.nome || "documento.pdf").toString().slice(0, 120);
     const nomeTeia = (req.query.teia || "").toString().trim().slice(0, 120);
 
+    if (!aceita(nome)) {
+      return res.status(400).json({
+        erro: `não sei ler '${nome}'. Aceito: ${EXTENSOES_ACEITAS.join(", ")}`,
+      });
+    }
+
     const id = criaJob({ nome, nomeTeia, objetivo, foco, usuarioId: req.usuario.id });
-    writeFileSync(join(TRABALHO, `${id}.pdf`), req.body);
+    // A extensão fica no arquivo temporário: é por ela que o fontes.mjs sabe
+    // se converte ou manda como está.
+    const arquivo = join(TRABALHO, `${id}${extname(nome).toLowerCase()}`);
+    jobs.get(id).arquivo = arquivo;
+    writeFileSync(arquivo, req.body);
 
     // O log entra aqui, no envio, e não ao terminar: se o trabalho falhar ou o
     // servidor cair no meio, você ainda precisa saber que alguém mandou aquilo.

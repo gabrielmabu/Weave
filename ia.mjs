@@ -1,17 +1,19 @@
 /**
- * ia.mjs — PDF → JSON de notas, via Gemini.
+ * ia.mjs — fontes → JSON de notas, via Gemini.
  *
  * Duas passadas:
- *   1. índice   — lê o PDF e devolve grupos + notas (sem conteúdo)
+ *   1. índice   — lê as fontes e devolve grupos + notas (sem conteúdo)
  *   2. conteúdo — escreve o markdown de cada nota, em lotes
  *
  * Por que duas: um material grande gera mais texto do que cabe numa única
  * resposta, e o modelo trunca no meio. Separar também melhora o resultado,
  * porque a estrutura é decidida antes de qualquer redação.
  *
- * O PDF é reenviado em toda chamada — a API é sem estado. Isso custa tokens
- * de entrada repetidos, e é o motivo de a passada 2 ir em lotes: 30 notas em
- * lotes de 5 são 6 chamadas, não 30.
+ * As fontes são reenviadas em toda chamada — a API é sem estado. Isso custa
+ * tokens de entrada repetidos, e é o motivo de a passada 2 ir em lotes: 30
+ * notas em lotes de 5 são 6 chamadas, não 30. É também por isso que tudo o que
+ * não é PDF chega aqui já convertido em texto pelo `fontes.mjs`: texto pesa
+ * muito menos por reenvio.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
@@ -20,6 +22,7 @@ import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { carregaEnv } from "./env.mjs";
+import { leFonte, tokensDeTexto } from "./fontes.mjs";
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -91,21 +94,34 @@ const SCHEMA_CONTEUDO = {
 // ---------------------------------------------------------------- chamada
 
 /**
- * Uma chamada ao Gemini com PDF + prompt, exigindo JSON conforme o schema.
+ * Uma fonte no formato que a API entende.
+ *
+ * PDF vai como arquivo; tudo o mais já chegou aqui convertido em texto pelo
+ * `fontes.mjs` e vai como texto — mais barato e de tamanho conhecido. O nome
+ * do arquivo acompanha o texto porque, com várias fontes na mesma chamada, o
+ * modelo precisa saber onde uma acaba e a outra começa para poder dizer que
+ * um conceito apareceu nas duas.
+ */
+export function parteDaFonte(fonte) {
+  if (fonte.pdf) {
+    return { inlineData: { mimeType: "application/pdf", data: fonte.pdf.toString("base64") } };
+  }
+  return { text: `### Fonte: ${fonte.nome} (${fonte.tipo})\n\n${fonte.texto}` };
+}
+
+/**
+ * Uma chamada ao Gemini com as fontes + prompt, exigindo JSON conforme o schema.
  *
  * Erros da API sobem com o corpo da resposta junto: numa primeira integração
  * a mensagem do servidor ("campo X desconhecido") é o que diagnostica, e
  * engolir isso transformaria um erro de campo num "deu erro" inútil.
  */
-async function chamada({ apiKey, modelo, pdfBase64, prompt, schema, tentativas = 3 }) {
+async function chamada({ apiKey, modelo, partes, prompt, schema, tentativas = 3 }) {
   const corpo = {
     contents: [
       {
         role: "user",
-        parts: [
-          { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-          { text: prompt },
-        ],
+        parts: [...partes, { text: prompt }],
       },
     ],
     generationConfig: {
@@ -261,9 +277,9 @@ const estimaTokens = (paginas) => Math.round((paginas * 277) / 100) * 100;
  * silêncio o resultado do prompt antigo — ou seja, seria impossível afinar
  * prompt, porque a mudança nunca teria efeito visível.
  */
-function abreCheckpoint(pdf, modelo, prompts, caminho) {
+function abreCheckpoint(assinatura, modelo, prompts, caminho) {
   const chave = createHash("sha1")
-    .update(pdf)
+    .update(assinatura)
     .update(String(modelo))
     .update(prompts.join(" "))
     .digest("hex")
@@ -305,29 +321,89 @@ function abreCheckpoint(pdf, modelo, prompts, caminho) {
  * Estima o custo sem chamar a API. Serve para decidir antes de gastar,
  * que é o ponto: descobrir o preço depois de pagar não ajuda ninguém.
  */
-export async function estimativa(caminhoPdf, opcoes = {}) {
+/**
+ * Lê os arquivos e aplica os limites, uma vez só.
+ *
+ * Uma vez só importa: a versão anterior abria o mesmo PDF com o pdf-lib três
+ * vezes por rodada (uma no corte, duas na estimativa). Além do desperdício, a
+ * conta do freio podia ser feita sobre um arquivo diferente do que seria
+ * enviado, porque cada leitura repetia o corte por conta própria.
+ */
+export async function preparaFontes(caminhos, opcoes = {}) {
   const env = carregaEnv();
-  const pdf = readFileSync(caminhoPdf);
-  const { PDFDocument } = await import("pdf-lib");
-  const doc = await PDFDocument.load(pdf, { ignoreEncryption: true });
+  const lista = Array.isArray(caminhos) ? caminhos : [caminhos];
+  const fontes = [];
 
-  const total = doc.getPageCount();
-  const max = Number(opcoes.paginas ?? env.MAX_PAGINAS ?? 0) || 0;
-  const paginas = max > 0 ? Math.min(max, total) : total;
+  for (const entrada of lista) {
+    const { caminho, nome } = typeof entrada === "string" ? { caminho: entrada, nome: entrada } : entrada;
+    const fonte = await leFonte(caminho, nome);
+
+    if (fonte.pdf) {
+      const cortado = await aplicaLimites(fonte.pdf, {
+        maxPaginas: Number(opcoes.paginas ?? env.MAX_PAGINAS ?? 0) || 0,
+        tetoPaginas: Number(opcoes.tetoPaginas ?? env.TETO_PAGINAS ?? 60),
+        tetoMb: Number(opcoes.tetoMb ?? env.TETO_MB ?? 18),
+      });
+      fonte.pdf = cortado;
+      fonte.paginas = await contaPaginas(cortado);
+    } else {
+      log(`· ${fonte.nome}: ${fonte.tipo} convertido aqui (${fonte.texto.length.toLocaleString("pt-BR")} caracteres)`);
+      for (const a of fonte.avisos) aviso(`  ! ${a}`);
+    }
+    fontes.push(fonte);
+  }
+  return fontes;
+}
+
+async function contaPaginas(pdf) {
+  try {
+    const { PDFDocument } = await import("pdf-lib");
+    return (await PDFDocument.load(pdf, { ignoreEncryption: true })).getPageCount();
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Quanto uma chamada custa de entrada, somando todas as fontes.
+ *
+ * PDF vai por página (é o que a medição real calibrou); texto vai por
+ * caractere, e aí o número é EXATO em vez de estimado — a fonte já está
+ * convertida e o tamanho é conhecido antes de qualquer chamada.
+ */
+function custoPorChamada(fontes) {
+  return fontes.reduce(
+    (t, f) => t + (f.pdf ? estimaTokens(f.paginas ?? 0) : tokensDeTexto(f.texto)),
+    0,
+  );
+}
+
+/**
+ * Estima o custo sem chamar a API. Serve para decidir antes de gastar,
+ * que é o ponto: descobrir o preço depois de pagar não ajuda ninguém.
+ */
+export async function estimativa(caminhos, opcoes = {}) {
+  const env = carregaEnv();
+  const fontes = opcoes.fontes ?? (await preparaFontes(caminhos, opcoes));
   const lote = Number(opcoes.lote ?? env.NOTAS_POR_LOTE ?? 12);
+
+  const paginas = fontes.reduce((t, f) => t + (f.paginas ?? 0), 0);
+  const caracteres = fontes.reduce((t, f) => t + (f.texto?.length ?? 0), 0);
 
   // O prompt do índice pede de 12 a 30 notas, com teto duro em 30. A
   // estimativa usa o teto porque errar para cima é seguro (o freio barra a
   // rodada cara) e errar para baixo não é (liberaria gasto que estoura).
   // Mantenha em sincronia com prompts/01-indice.md.
-  const notasEstimadas = Math.min(30, Math.max(12, Math.round(paginas / 1.5)));
+  const tamanho = paginas + Math.ceil(caracteres / 2500); // páginas-equivalente
+  const notasEstimadas = Math.min(30, Math.max(12, Math.round(tamanho / 1.5)));
   const chamadas = 1 + Math.ceil(notasEstimadas / lote);
-  const tokensPorChamada = estimaTokens(paginas);
+  const tokensPorChamada = custoPorChamada(fontes);
 
   return {
+    fontes,
     paginas,
-    totalPaginas: total,
-    mb: (pdf.length / 1024 / 1024) * (paginas / total),
+    caracteres,
+    mb: fontes.reduce((t, f) => t + (f.pdf?.length ?? 0), 0) / 1024 / 1024,
     lote,
     notasEstimadas,
     chamadas,
@@ -336,7 +412,7 @@ export async function estimativa(caminhoPdf, opcoes = {}) {
   };
 }
 
-export async function pdfParaNotas(caminhoPdf, opcoes = {}) {
+export async function fontesParaNotas(caminhos, opcoes = {}) {
   const env = carregaEnv();
   const apiKey = opcoes.apiKey ?? env.GEMINI_API_KEY;
   const modelo = opcoes.modelo ?? env.GEMINI_MODEL ?? "gemini-2.5-flash";
@@ -350,25 +426,15 @@ export async function pdfParaNotas(caminhoPdf, opcoes = {}) {
     );
   }
 
-  let pdf;
-  try {
-    pdf = readFileSync(caminhoPdf);
-  } catch (e) {
-    throw new Error(`não consegui ler o PDF: ${e.message}`);
-  }
-
-  pdf = await aplicaLimites(pdf, {
-    maxPaginas: Number(opcoes.paginas ?? env.MAX_PAGINAS ?? 0) || 0,
-    tetoPaginas: Number(opcoes.tetoPaginas ?? env.TETO_PAGINAS ?? 60),
-    tetoMb: Number(opcoes.tetoMb ?? env.TETO_MB ?? 18),
-  });
+  const fontes = opcoes.fontes ?? (await preparaFontes(caminhos, opcoes));
+  if (!fontes.length) throw new Error("nenhuma fonte para ler");
 
   // Freio de gasto por rodada. O saldo é pré-pago e compartilhado com o app
   // em produção, então o pior caso não é uma fatura inesperada — é o saldo
   // acabar e o outro app parar. Este teto barra ANTES da primeira chamada.
   const tetoTokens = Number(opcoes.tetoTokens ?? env.TETO_TOKENS_POR_RODADA ?? 60000);
+  const prev = await estimativa(null, { ...opcoes, fontes });
   if (tetoTokens > 0) {
-    const prev = await estimativa(caminhoPdf, { paginas: opcoes.paginas, lote: opcoes.lote });
     if (prev.tokensTotais > tetoTokens) {
       throw new Error(
         `estimativa de ${prev.tokensTotais.toLocaleString("pt-BR")} tokens de entrada ` +
@@ -383,11 +449,9 @@ export async function pdfParaNotas(caminhoPdf, opcoes = {}) {
         `(teto ${tetoTokens.toLocaleString("pt-BR")})`,
     );
   }
-
-  const mb = pdf.length / 1024 / 1024;
-  const pdfBase64 = pdf.toString("base64");
   // Guardado para a segunda checagem do freio, depois da passada 1.
-  const paginasEnviadas = (await estimativa(caminhoPdf, { paginas: opcoes.paginas })).paginas;
+  const custoDeUmaChamada = prev.tokensPorChamada;
+  const partes = fontes.map(parteDaFonte);
 
   const objetivo = (opcoes.objetivo ?? env.OBJETIVO ?? "").trim();
 
@@ -416,8 +480,10 @@ export async function pdfParaNotas(caminhoPdf, opcoes = {}) {
     uso.saida += u?.candidatesTokenCount ?? 0;
   };
 
-  log(`· lendo ${caminhoPdf} (${mb.toFixed(1)} MB) com ${modelo}`);
-  const ck = abreCheckpoint(pdf, modelo, [prompt1, prompt2], opcoes.checkpoint);
+  log(`· lendo ${fontes.map((f) => f.nome).join(", ")} com ${modelo}`);
+  // A chave do checkpoint sai do hash de cada fonte, não dos bytes de um PDF:
+  // com várias fontes, trocar qualquer uma precisa invalidar o que foi feito.
+  const ck = abreCheckpoint(fontes.map((f) => f.hash).join(" "), modelo, [prompt1, prompt2], opcoes.checkpoint);
 
   // ---- passada 1: índice
   let indice = ck.estado.indice;
@@ -426,7 +492,7 @@ export async function pdfParaNotas(caminhoPdf, opcoes = {}) {
   } else {
     log("· passada 1/2 — montando o índice");
     const r1 = await chamada({
-      apiKey, modelo, pdfBase64, prompt: prompt1, schema: SCHEMA_INDICE,
+      apiKey, modelo, partes, prompt: prompt1, schema: SCHEMA_INDICE,
     });
     soma(r1.uso);
     indice = r1.dados;
@@ -461,7 +527,7 @@ export async function pdfParaNotas(caminhoPdf, opcoes = {}) {
   if (tetoTokens > 0) {
     const faltam = indice.notas.filter((n) => !ck.estado.conteudos[n.id]?.trim()).length;
     const chamadasReais = Math.ceil(faltam / lote);
-    const gastoPrevisto = chamadasReais * estimaTokens(paginasEnviadas);
+    const gastoPrevisto = chamadasReais * custoDeUmaChamada;
     const jaGasto = uso.entrada;
 
     if (jaGasto + gastoPrevisto > tetoTokens) {
@@ -499,7 +565,7 @@ export async function pdfParaNotas(caminhoPdf, opcoes = {}) {
           .join("\n");
       try {
         const r2 = await chamada({
-          apiKey, modelo, pdfBase64, prompt: pedido, schema: SCHEMA_CONTEUDO,
+          apiKey, modelo, partes, prompt: pedido, schema: SCHEMA_CONTEUDO,
         });
         soma(r2.uso);
         for (const item of r2.dados.notas ?? []) {
