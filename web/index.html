@@ -18,6 +18,7 @@ align-items:center;gap:10px;border-bottom:1px solid var(--borda)}
 .topo span{font-size:12.5px;color:var(--texto2);margin-left:auto}
 .marca{width:24px;height:24px;flex-shrink:0}
 main{max-width:640px;margin:0 auto;padding:24px 18px 60px}
+main.largo{max-width:1100px}
 .cartao{background:var(--carvao);border:1px solid var(--borda);border-radius:14px;padding:20px;margin-bottom:16px}
 label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
 .dica{font-size:13px;color:var(--texto2);margin:0 0 10px}
@@ -46,7 +47,7 @@ background:var(--ouro-fraco);color:var(--ouro);border-radius:20px}
 .exemplos button:hover{background:rgba(198,161,91,.24)}
 .andamento{font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;
 background:#0d0d10;color:var(--ouro-claro);border:1px solid var(--borda);
-border-radius:10px;padding:12px 14px;max-height:230px;
+border-radius:10px;padding:12px 14px;max-height:180px;
 overflow-y:auto;white-space:pre-wrap;margin:0}
 .aviso{background:rgba(232,160,32,.09);border:1px solid rgba(232,160,32,.28);
 border-left:4px solid var(--ambar);
@@ -65,15 +66,62 @@ padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--borda)}
 font-weight:500;margin-left:auto;text-decoration:underline}
 .link:hover{background:none;color:var(--ouro-claro)}
 .oculto{display:none}
+a.baixar{display:block;text-align:center;padding:13px;background:var(--ouro);color:#08080a;
+border-radius:10px;text-decoration:none;font-weight:600}
+a.baixar:hover{background:var(--ouro-claro)}
 /* No formulário de conta os campos ficam empilhados sem nada entre eles, então
    o respiro tem de vir do próprio campo — sem isto o botão dourado encosta no
    último input. Restrito ao cartão de conta: nas outras telas o espaçamento já
    vem dos blocos em volta. */
 #cartaoConta input{margin-bottom:15px}
 #botaoConta{margin-top:3px}
-a.baixar{display:block;text-align:center;padding:13px;background:var(--ouro);color:#08080a;
-border-radius:10px;text-decoration:none;font-weight:600}
-a.baixar:hover{background:var(--ouro-claro)}
+
+/* ------------------------------------------------------------ Minhas Teias */
+
+.cabecalho{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.cabecalho h2{font-size:16px;margin:0;font-weight:600}
+.cabecalho .conta{font-size:12.5px;color:var(--texto2)}
+.teia{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--borda);
+border-radius:11px;background:#0d0d10;margin-bottom:8px}
+.teia:hover{border-color:rgba(198,161,91,.4)}
+.teia .corpo{flex:1;min-width:0;cursor:pointer}
+.teia .nome{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teia .meta{font-size:12px;color:var(--texto2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teia .acoes{display:flex;gap:6px;flex-shrink:0}
+.icone{width:34px;height:34px;padding:0;border-radius:9px;background:var(--ouro-fraco);
+color:var(--ouro);font-size:17px;line-height:1;display:grid;place-items:center}
+.icone:hover{background:rgba(198,161,91,.26)}
+.icone.mais{font-size:21px;font-weight:400}
+.vazio{font-size:13.5px;color:var(--texto2);text-align:center;padding:14px 0}
+
+/* --------------------------------------------------------------- visor */
+
+.visor{width:100%;height:min(78vh,760px);border:1px solid var(--borda);
+border-radius:11px;background:var(--fundo)}
+
+/* ----------------------------------------------- a aranha como progresso */
+/*
+ * A barra de progresso é a própria teia sendo tecida: cada fio acende quando a
+ * etapa que ele representa termina. É honesta — o avanço vem do andamento real
+ * (índice pronto, lote N de M), não de um relógio fingindo trabalho.
+ */
+.tear{display:block;width:100%;max-width:420px;margin:0 auto 6px}
+.tear .fio{stroke:rgba(198,161,91,.9);fill:none;stroke-linecap:round;
+stroke-dasharray:var(--c);stroke-dashoffset:var(--c);
+transition:stroke-dashoffset .9s ease-out}
+.tear .fio.feito{stroke-dashoffset:0}
+.tear .raio{stroke-width:1}
+.tear .anel{stroke-width:1.3;stroke:var(--ouro-claro)}
+.tear .queda{stroke:rgba(198,161,91,.35);stroke-width:1;stroke-dasharray:none;stroke-dashoffset:0}
+.tear .aranha{transition:transform .9s cubic-bezier(.31,.98,.5,1)}
+.tear .aranha.bole{animation:bole 2.6s ease-in-out infinite}
+@keyframes bole{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(1.6px) rotate(1.4deg)}}
+.passo{text-align:center;font-size:13px;color:var(--texto2);margin:0 0 12px}
+.passo b{color:var(--ouro-claro);font-weight:600}
+@media (prefers-reduced-motion:reduce){
+  .tear .fio,.tear .aranha{transition:none}
+  .tear .aranha.bole{animation:none}
+}
 </style>
 </head>
 <body>
@@ -114,22 +162,53 @@ a.baixar:hover{background:var(--ouro-claro)}
     <button id="botaoConta">Entrar</button>
   </div>
 
-  <div class="cartao oculto" id="cartaoEnvio">
-    <div class="quem">
-      <span id="quemSou"></span>
+  <div class="cartao oculto" id="cartaoTeias">
+    <div class="cabecalho">
+      <h2>Minhas teias</h2>
+      <span class="conta" id="quemSou"></span>
       <button type="button" id="sair" class="link">sair</button>
     </div>
+    <div id="listaTeias"></div>
+    <button id="novaTeia" style="margin-top:6px">Tecer uma teia nova</button>
+  </div>
 
-    <label for="objetivo">Para que serve este mapa?</label>
-    <p class="dica">É o que mais muda o resultado. O mesmo PDF vira mapas diferentes
-      conforme o objetivo — muda o que vira nota, como agrupa e o que se conecta.</p>
-    <textarea id="objetivo" placeholder="ex.: estudar os conceitos para a prova da OAB"></textarea>
-    <div class="exemplos">
-      <button type="button" data-ex="estudar os conceitos para a prova">estudar para prova</button>
-      <button type="button" data-ex="revisar na véspera, foco no que mais cai">revisão de véspera</button>
-      <button type="button" data-ex="explicar o assunto para alguém leigo">explicar para leigo</button>
-      <button type="button" data-ex="apresentar este projeto para a diretoria">apresentar projeto</button>
+  <div class="cartao oculto" id="cartaoVisor">
+    <div class="cabecalho">
+      <h2 id="tituloVisor"></h2>
+      <button type="button" id="fecharVisor" class="link">fechar</button>
     </div>
+    <iframe class="visor" id="visor" title="A teia"></iframe>
+  </div>
+
+  <div class="cartao oculto" id="cartaoEnvio">
+    <div class="cabecalho">
+      <h2 id="tituloEnvio">Tecer uma teia nova</h2>
+      <button type="button" id="cancelarEnvio" class="link">cancelar</button>
+    </div>
+
+    <!-- Nome e objetivo só na teia nova: numa teia que já existe eles foram
+         decididos no primeiro arquivo, e pedir de novo só deixaria divergirem. -->
+    <div class="soNova">
+      <label for="nomeTeia">Nome da teia</label>
+      <p class="dica">Como você vai encontrá-la depois. Ex.: "Processual Civil — OAB".</p>
+      <input type="text" id="nomeTeia" maxlength="120" placeholder="dê um nome a esta teia">
+
+      <label for="objetivo" style="margin-top:18px">Para que serve esta teia?</label>
+      <p class="dica">É o que mais muda o resultado. O mesmo PDF vira teias diferentes
+        conforme o objetivo — muda o que vira nota, como agrupa e o que se conecta.</p>
+      <textarea id="objetivo" placeholder="ex.: estudar os conceitos para a prova da OAB"></textarea>
+      <div class="exemplos">
+        <button type="button" data-ex="estudar os conceitos para a prova">estudar para prova</button>
+        <button type="button" data-ex="revisar na véspera, foco no que mais cai">revisão de véspera</button>
+        <button type="button" data-ex="explicar o assunto para alguém leigo">explicar para leigo</button>
+        <button type="button" data-ex="apresentar este projeto para a diretoria">apresentar projeto</button>
+      </div>
+    </div>
+
+    <label for="foco" style="margin-top:18px">O que aprofundar neste material? <span style="font-weight:400;color:var(--texto2)">(opcional)</span></label>
+    <p class="dica">Detalhe que só vale para este arquivo. Ex.: "a prova da Profª Ana
+      cobra bastante controle de constitucionalidade".</p>
+    <textarea id="foco" style="min-height:56px" placeholder="deixe em branco se não houver nada específico"></textarea>
 
     <label for="arquivo" style="margin-top:18px">Arquivo</label>
     <div class="solta" id="solta">
@@ -142,11 +221,23 @@ a.baixar:hover{background:var(--ouro-claro)}
       conforme o tamanho. É a própria tela que mantém o servidor acordado enquanto
       trabalha — fechando antes do fim, o processamento pode ser interrompido.</div>
 
-    <button id="enviar" disabled>Gerar mapa</button>
+    <button id="enviar" disabled>Tecer mapa</button>
   </div>
 
   <div class="cartao oculto" id="cartaoAndamento">
-    <label>Andamento <span id="relogio" style="font-weight:400;color:var(--texto2)"></span></label>
+    <svg class="tear" id="tear" viewBox="0 0 420 210" aria-hidden="true">
+      <line class="queda" x1="210" y1="0" x2="210" y2="62"/>
+      <g id="fios"></g>
+      <g class="aranha" id="aranha" transform="translate(210,20)">
+        <ellipse cx="0" cy="2" rx="4.4" ry="5.8" fill="#c6a15b"/>
+        <circle cx="0" cy="-5.2" r="2.7" fill="#c6a15b"/>
+        <g stroke="#c6a15b" stroke-width="1" stroke-linecap="round">
+          <path d="M-3,-2 L-11,-7 M-3,0 L-13,1 M-3,3 L-11,9 M-3,5 L-9,13"/>
+          <path d="M3,-2 L11,-7 M3,0 L13,1 M3,3 L11,9 M3,5 L9,13"/>
+        </g>
+      </g>
+    </svg>
+    <p class="passo" id="passo">na fila…</p>
     <pre class="andamento" id="andamento">na fila…</pre>
     <div id="resultado" style="margin-top:14px"></div>
   </div>
@@ -155,7 +246,7 @@ a.baixar:hover{background:var(--ouro-claro)}
 <script>
 const $ = (s) => document.querySelector(s);
 let arquivo = null;
-let jobId = localStorage.getItem("cortex_job") || null;
+let jobId = localStorage.getItem("weave_job") || null;
 let emAndamento = false;
 
 // No plano gratuito do Render é esta página que mantém o servidor acordado:
@@ -167,6 +258,8 @@ addEventListener("beforeunload", (e) => {
   e.returnValue = "";
 });
 
+const mostra = (id, sim) => $(id).classList.toggle("oculto", !sim);
+
 // ------------------------------------------------------------------- conta
 //
 // A sessão vive num cookie httpOnly posto pelo servidor: o JavaScript daqui
@@ -175,11 +268,6 @@ addEventListener("beforeunload", (e) => {
 // cabeçalho de senha.
 
 let modo = "entrar";
-
-const mostraConta = (mostrar) => {
-  $("#cartaoConta").classList.toggle("oculto", !mostrar);
-  $("#cartaoEnvio").classList.toggle("oculto", mostrar);
-};
 
 const erroConta = (msg) => {
   const el = $("#erroConta");
@@ -223,16 +311,19 @@ $("#botaoConta").onclick = async () => {
   }
 };
 
-function entrou(usuario) {
+async function entrou(usuario) {
   $("#quemSou").textContent = usuario.email;
-  mostraConta(false);
   $("#senha").value = "";
-  if (jobId) { $("#cartaoEnvio").classList.add("oculto"); $("#cartaoAndamento").classList.remove("oculto"); acompanha(); }
+  mostra("#cartaoConta", false);
+
+  if (jobId) return abreAndamento();
+  mostra("#cartaoTeias", true);
+  await carregaTeias();
 }
 
 $("#sair").onclick = async () => {
   await fetch("/api/sair", { method: "POST", credentials: "same-origin" }).catch(() => {});
-  localStorage.removeItem("cortex_job");
+  localStorage.removeItem("weave_job");
   location.reload();
 };
 
@@ -242,8 +333,114 @@ $("#sair").onclick = async () => {
     const r = await fetch("/api/eu", { credentials: "same-origin" });
     if (r.ok) return entrou(await r.json());
   } catch { /* servidor fora do ar; cai na tela de entrar */ }
-  mostraConta(true);
+  mostra("#cartaoConta", true);
 })();
+
+// ------------------------------------------------------------ minhas teias
+
+const escapa = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const quando = (iso) => {
+  const dias = Math.floor((Date.now() - new Date(iso)) / 86400000);
+  if (!Number.isFinite(dias)) return "";
+  if (dias === 0) return "hoje";
+  if (dias === 1) return "ontem";
+  if (dias < 30) return `há ${dias} dias`;
+  return new Date(iso).toLocaleDateString("pt-BR");
+};
+
+async function carregaTeias() {
+  const lista = $("#listaTeias");
+  try {
+    const r = await fetch("/api/teias", { credentials: "same-origin" });
+    if (!r.ok) throw new Error((await r.json()).erro || `erro ${r.status}`);
+    const teias = await r.json();
+
+    if (!teias.length) {
+      lista.innerHTML = `<p class="vazio">Nenhuma teia ainda. Comece mandando um arquivo.</p>`;
+      return;
+    }
+
+    lista.innerHTML = teias.map((t) => {
+      const nf = t.fontes?.length ?? 0;
+      const meta = `${nf} fonte${nf === 1 ? "" : "s"} · ${t.notas} notas · ${quando(t.atualizada_em)}`;
+      return `<div class="teia" data-id="${escapa(t.id)}" data-nome="${escapa(t.nome)}">
+        <div class="corpo" data-acao="abrir">
+          <div class="nome">${escapa(t.nome)}</div>
+          <div class="meta">${escapa(meta)}</div>
+        </div>
+        <div class="acoes">
+          <button type="button" class="icone mais" data-acao="tecer" title="Acrescentar um arquivo a esta teia">+</button>
+          <button type="button" class="icone" data-acao="baixar" title="Exportar">↓</button>
+          <button type="button" class="icone" data-acao="apagar" title="Apagar">×</button>
+        </div>
+      </div>`;
+    }).join("");
+  } catch (e) {
+    lista.innerHTML = `<div class="falha">Não deu para listar as teias: ${escapa(e.message)}</div>`;
+  }
+}
+
+$("#listaTeias").onclick = async (e) => {
+  const alvo = e.target.closest("[data-acao]");
+  if (!alvo) return;
+  const linha = alvo.closest(".teia");
+  const { id, nome } = linha.dataset;
+
+  if (alvo.dataset.acao === "abrir") return abreVisor(id, nome);
+  if (alvo.dataset.acao === "baixar") return location.assign(`/api/teias/${id}/html?baixar=1`);
+  if (alvo.dataset.acao === "tecer") return abreEnvio({ teiaId: id, nome });
+  if (alvo.dataset.acao === "apagar") {
+    if (!confirm(`Apagar a teia "${nome}"? Não dá para desfazer.`)) return;
+    const r = await fetch(`/api/teias/${id}`, { method: "DELETE", credentials: "same-origin" });
+    if (!r.ok && r.status !== 204) return alert("Não deu para apagar.");
+    await carregaTeias();
+  }
+};
+
+function abreVisor(id, nome) {
+  $("#tituloVisor").textContent = nome;
+  // O src só é atribuído aqui: um iframe carregado de antemão baixaria a teia
+  // toda mesmo quando ninguém fosse olhar.
+  $("#visor").src = `/api/teias/${id}/html`;
+  mostra("#cartaoVisor", true);
+  document.querySelector("main").classList.add("largo");
+  $("#cartaoVisor").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+$("#fecharVisor").onclick = () => {
+  $("#visor").src = "about:blank";
+  mostra("#cartaoVisor", false);
+  document.querySelector("main").classList.remove("largo");
+};
+
+// ------------------------------------------------------------------- envio
+
+// Preenchido quando o envio é "acrescentar a uma teia existente" (o botão +).
+let tecendoEm = null;
+
+function abreEnvio({ teiaId = null, nome = "" } = {}) {
+  tecendoEm = teiaId;
+  mostra("#cartaoTeias", false);
+  mostra("#cartaoVisor", false);
+  mostra("#cartaoEnvio", true);
+
+  $("#tituloEnvio").textContent = teiaId ? `Acrescentar a "${nome}"` : "Tecer uma teia nova";
+  for (const bloco of document.querySelectorAll(".soNova")) {
+    bloco.classList.toggle("oculto", Boolean(teiaId));
+  }
+  $("#enviar").textContent = teiaId ? "Tecer nesta teia" : "Tecer mapa";
+  $("#cartaoEnvio").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+$("#novaTeia").onclick = () => abreEnvio();
+
+$("#cancelarEnvio").onclick = async () => {
+  mostra("#cartaoEnvio", false);
+  mostra("#cartaoTeias", true);
+  await carregaTeias();
+};
 
 for (const b of document.querySelectorAll(".exemplos button")) {
   b.onclick = () => { $("#objetivo").value = b.dataset.ex; };
@@ -272,18 +469,27 @@ $("#solta").addEventListener("drop", (e) => {
 
 $("#enviar").onclick = async () => {
   if (!arquivo) return;
+  const nome = $("#nomeTeia").value.trim();
+  if (!tecendoEm && !nome) {
+    $("#nomeTeia").focus();
+    return alert("Dê um nome à teia — é como você vai encontrá-la depois.");
+  }
+
   $("#enviar").disabled = true;
   $("#enviar").textContent = "enviando…";
 
   const q = new URLSearchParams({
     objetivo: $("#objetivo").value.trim(),
+    foco: $("#foco").value.trim(),
+    teia: nome,
     nome: arquivo.name,
   });
+  const rota = tecendoEm ? `/api/teias/${tecendoEm}/tecer?${q}` : `/api/jobs?${q}`;
 
   try {
     // O PDF vai como corpo cru, sem multipart: menos peça para dar errado
     // e nenhuma dependência de parsing no servidor.
-    const r = await fetch(`/api/jobs?${q}`, {
+    const r = await fetch(rota, {
       method: "POST",
       headers: { "Content-Type": "application/pdf" },
       credentials: "same-origin",
@@ -293,56 +499,150 @@ $("#enviar").onclick = async () => {
     if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
 
     jobId = j.id;
-    localStorage.setItem("cortex_job", jobId);
-    $("#cartaoEnvio").classList.add("oculto");
-    $("#cartaoAndamento").classList.remove("oculto");
-    acompanha();
+    localStorage.setItem("weave_job", jobId);
+    abreAndamento();
   } catch (e) {
     $("#enviar").disabled = false;
-    $("#enviar").textContent = "Gerar mapa";
+    $("#enviar").textContent = tecendoEm ? "Tecer nesta teia" : "Tecer mapa";
     alert(`Não deu para enviar: ${e.message}`);
   }
 };
+
+// --------------------------------------------------------------- andamento
+
+/**
+ * A teia que se fecha conforme o trabalho anda.
+ *
+ * Os fios são desenhados uma vez e acesos por etapa. Cada um carrega o ponto
+ * do progresso em que acende, e o comprimento vai para uma variável CSS porque
+ * `stroke-dasharray` precisa do tamanho real do traço para animar.
+ */
+const RAIOS = 8, ANEIS = 3, CX = 210, CY = 118, R = 82;
+(function montaTear() {
+  const g = $("#fios");
+  const ponto = (i, r) => {
+    const a = (Math.PI * 2 * i) / RAIOS - Math.PI / 2;
+    return [CX + Math.cos(a) * r, CY + Math.sin(a) * r];
+  };
+
+  // Raios primeiro: são a estrutura, e é assim que uma aranha tece.
+  for (let i = 0; i < RAIOS; i++) {
+    const [x, y] = ponto(i, R);
+    const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    l.setAttribute("class", "fio raio");
+    l.setAttribute("x1", CX); l.setAttribute("y1", CY);
+    l.setAttribute("x2", x.toFixed(1)); l.setAttribute("y2", y.toFixed(1));
+    l.style.setProperty("--c", R);
+    l.dataset.em = 8 + i * 3;            // 8% … 29%
+    g.appendChild(l);
+  }
+
+  // Anéis: um por terço da passada 2, que é a parte longa.
+  for (let k = 1; k <= ANEIS; k++) {
+    const r = (R * k) / (ANEIS + 0.35);
+    const d = Array.from({ length: RAIOS + 1 }, (_, i) => {
+      const [x, y] = ponto(i % RAIOS, r);
+      return `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(" ");
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("class", "fio anel");
+    p.setAttribute("d", d);
+    p.style.setProperty("--c", Math.ceil(2 * Math.PI * r * 1.1));
+    p.dataset.em = 40 + (k - 1) * 22;    // 40%, 62%, 84%
+    g.appendChild(p);
+  }
+})();
+
+function tece(pct, texto) {
+  for (const fio of document.querySelectorAll("#fios .fio")) {
+    fio.classList.toggle("feito", pct >= Number(fio.dataset.em));
+  }
+  // A aranha desce pelo fio até o centro nos primeiros 30% e fica tecendo lá.
+  const y = pct < 30 ? 20 + (CY - 20) * (pct / 30) : CY;
+  const aranha = $("#aranha");
+  aranha.setAttribute("transform", `translate(${CX},${y.toFixed(1)})`);
+  aranha.classList.toggle("bole", pct >= 30);
+  if (texto) $("#passo").innerHTML = texto;
+}
+
+/**
+ * Do log para o desenho.
+ *
+ * O avanço sai do que o servidor de fato reportou — "lote 3/6" é 3 de 6 lotes
+ * pagos, não um palpite de tempo. Barra que anda sozinha mente quando o
+ * trabalho trava, e aqui travar é justamente o que precisa ficar visível.
+ */
+function progressoDoLog(linhas) {
+  const texto = linhas.join("\n");
+  const lote = [...texto.matchAll(/lote (\d+)\/(\d+)/g)].pop();
+  if (lote) {
+    const [, i, n] = lote.map(Number);
+    return { pct: 35 + (i / n) * 60, passo: `escrevendo as notas · <b>lote ${i} de ${n}</b>` };
+  }
+  if (/passada 2\/2/.test(texto)) return { pct: 35, passo: "começando a escrever as notas" };
+  if (/notas em .* grupos/.test(texto)) return { pct: 32, passo: "índice pronto" };
+  if (/passada 1\/2/.test(texto)) return { pct: 18, passo: "lendo o material e montando o índice" };
+  if (/lendo /.test(texto)) return { pct: 10, passo: "lendo o arquivo" };
+  return { pct: 3, passo: "na fila…" };
+}
+
+function abreAndamento() {
+  mostra("#cartaoTeias", false);
+  mostra("#cartaoEnvio", false);
+  mostra("#cartaoVisor", false);
+  mostra("#cartaoAndamento", true);
+  acompanha();
+}
 
 async function acompanha() {
   if (!jobId) return;
   try {
     const r = await fetch(`/api/jobs/${jobId}`, { credentials: "same-origin" });
-    if (r.status === 404) { localStorage.removeItem("cortex_job"); return; }
+    if (r.status === 404) { localStorage.removeItem("weave_job"); jobId = null; return voltaParaLista(); }
     const j = await r.json();
 
     $("#andamento").textContent = j.progresso.length ? j.progresso.join("\n") : "na fila…";
     $("#andamento").scrollTop = $("#andamento").scrollHeight;
-    $("#relogio").textContent = `· ${Math.floor(j.segundos / 60)}min ${j.segundos % 60}s`;
 
     emAndamento = j.estado === "processando" || j.estado === "na fila";
 
-    if (j.estado === "pronto") {
+    if (j.estado === "pronto" || j.estado === "nao salvo") {
       emAndamento = false;
-      $("#resultado").innerHTML =
-        `<p style="margin:0 0 10px"><strong>${j.notas} notas</strong> em ${j.grupos} grupos.</p>
-         <a class="baixar" href="/api/jobs/${jobId}/html">Baixar o mapa</a>
-         <p class="dica" style="margin-top:10px">Baixe agora — o servidor não guarda o arquivo para sempre.</p>`;
-      localStorage.removeItem("cortex_job");
+      tece(100, "teia pronta");
+      const minutos = `${Math.floor(j.segundos / 60)}min ${j.segundos % 60}s`;
+      $("#resultado").innerHTML = j.estado === "pronto"
+        ? `<p style="margin:0 0 10px"><strong>${j.notas} notas</strong> em ${j.grupos} grupos · ${minutos}.</p>
+           <button type="button" id="verAgora">Ver a teia</button>`
+        : `<div class="falha">${escapa(j.erro)}</div>
+           <a class="baixar" style="margin-top:10px" href="/api/jobs/${jobId}/html">Baixar o mapa agora</a>`;
+      if (j.teiaId) $("#verAgora").onclick = () => voltaParaLista(j.teiaId, j.titulo);
+      localStorage.removeItem("weave_job");
+      jobId = null;
       return;
     }
     if (j.estado === "erro") {
       emAndamento = false;
-      $("#resultado").innerHTML = `<div class="falha">${j.erro}</div>`;
-      localStorage.removeItem("cortex_job");
+      $("#resultado").innerHTML =
+        `<div class="falha">${escapa(j.erro)}</div>
+         <button type="button" style="margin-top:10px" onclick="location.reload()">Voltar</button>`;
+      localStorage.removeItem("weave_job");
+      jobId = null;
       return;
     }
+
+    const { pct, passo } = progressoDoLog(j.progresso);
+    tece(pct, `${passo} · ${Math.floor(j.segundos / 60)}min ${j.segundos % 60}s`);
     setTimeout(acompanha, 3000);
   } catch {
     setTimeout(acompanha, 6000); // rede oscilou; insiste sem desistir do job
   }
 }
 
-// Voltou à página com um job em andamento? Retoma o acompanhamento.
-if (jobId) {
-  $("#cartaoEnvio").classList.add("oculto");
-  $("#cartaoAndamento").classList.remove("oculto");
-  acompanha();
+async function voltaParaLista(abrirId, nome) {
+  mostra("#cartaoAndamento", false);
+  mostra("#cartaoTeias", true);
+  await carregaTeias();
+  if (abrirId) abreVisor(abrirId, nome ?? "");
 }
 </script>
 </body>

@@ -24,7 +24,7 @@ const AQUI = dirname(fileURLToPath(import.meta.url));
 // ------------------------------------------------------------- arquivo local
 
 function armazenamentoLocal(caminho) {
-  const vazio = { usuarios: [], sessoes: [], acessos: [] };
+  const vazio = { usuarios: [], sessoes: [], acessos: [], teias: [], criterios: [] };
 
   const le = () => {
     if (!existsSync(caminho)) return structuredClone(vazio);
@@ -100,6 +100,75 @@ function armazenamentoLocal(caminho) {
         .slice(-limite)
         .reverse()
         .map((a) => ({ ...a, email: porId[a.usuario_id] ?? "?" }));
+    },
+
+    // ------------------------------------------------------------ teias
+
+    async criaTeia({ usuario_id, nome, objetivo, foco, mapa }) {
+      const d = le();
+      const agora = new Date().toISOString();
+      const t = {
+        id: randomUUID(), usuario_id, nome, objetivo: objetivo ?? null,
+        foco: foco ?? null, mapa, n_notas: mapa?.notas?.length ?? 0,
+        criada_em: agora, atualizada_em: agora,
+      };
+      d.teias.push(t);
+      grava(d);
+      return t;
+    },
+
+    /** Sem o `mapa`, para espelhar o que o Supabase devolve. */
+    async listaTeias(usuario_id) {
+      return le()
+        .teias.filter((t) => t.usuario_id === usuario_id)
+        .sort((a, b) => b.atualizada_em.localeCompare(a.atualizada_em))
+        .map(({ mapa, ...resto }) => ({ ...resto, fontes: mapa?.fontes ?? [] }));
+    },
+
+    /**
+     * Sempre pelo par (id, dono).
+     *
+     * Filtrar o dono aqui, e não em quem chama, é o que impede que uma rota
+     * futura esqueça a checagem e vaze a teia de outro. A regra fica num lugar
+     * só, e é este.
+     */
+    async achaTeia(id, usuario_id) {
+      return le().teias.find((t) => t.id === id && t.usuario_id === usuario_id) ?? null;
+    },
+
+    async atualizaTeia(id, usuario_id, campos) {
+      const d = le();
+      const t = d.teias.find((x) => x.id === id && x.usuario_id === usuario_id);
+      if (!t) return null;
+      Object.assign(t, campos, { atualizada_em: new Date().toISOString() });
+      // A contagem acompanha o mapa sozinha: deixá-la a cargo de quem chama
+      // faria "51 notas" na lista descolar da teia em algum ponto.
+      if (campos.mapa) t.n_notas = campos.mapa.notas?.length ?? 0;
+      grava(d);
+      return t;
+    },
+
+    async apagaTeia(id, usuario_id) {
+      const d = le();
+      const antes = d.teias.length;
+      d.teias = d.teias.filter((t) => !(t.id === id && t.usuario_id === usuario_id));
+      grava(d);
+      return d.teias.length < antes;
+    },
+
+    // -------------------------------------------------------- critérios
+
+    async achaCriterios(objetivo) {
+      return le().criterios.find((c) => c.objetivo === objetivo) ?? null;
+    },
+
+    async gravaCriterios(objetivo, criterios) {
+      const d = le();
+      const existente = d.criterios.find((c) => c.objetivo === objetivo);
+      const quando = new Date().toISOString();
+      if (existente) Object.assign(existente, { criterios, quando });
+      else d.criterios.push({ objetivo, criterios, quando });
+      grava(d);
     },
   };
 }
@@ -190,6 +259,97 @@ function armazenamentoSupabase(url, chave) {
           `/acessos?select=*,usuario:usuarios(email)&order=quando.desc&limit=${limite}`,
         )) ?? []
       );
+    },
+
+    // ------------------------------------------------------------ teias
+
+    async criaTeia({ usuario_id, nome, objetivo, foco, mapa }) {
+      return um(
+        await chama("/teias", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({
+            usuario_id, nome, objetivo, foco, mapa,
+            n_notas: mapa?.notas?.length ?? 0,
+          }),
+        }),
+      );
+    },
+
+    /**
+     * A lista NÃO traz o `mapa`.
+     *
+     * São 146 KB por teia; dez teias seriam 1,5 MB de JSON só para desenhar
+     * uma lista de nomes. O que a lista precisa mostrar vem barato: `n_notas`
+     * é coluna própria e `mapa->fontes` é um pedaço pequeno do jsonb, extraído
+     * pelo Postgres sem trazer o resto. O mapa inteiro só em `achaTeia`.
+     */
+    async listaTeias(usuario_id) {
+      return (
+        (await chama(
+          `/teias?usuario_id=eq.${encodeURIComponent(usuario_id)}` +
+            "&select=id,nome,objetivo,foco,n_notas,criada_em,atualizada_em,fontes:mapa->fontes" +
+            "&order=atualizada_em.desc",
+        )) ?? []
+      );
+    },
+
+    /**
+     * Sempre pelo par (id, dono).
+     *
+     * O dono entra no próprio filtro, e não numa comparação depois da leitura:
+     * uma rota futura que esqueça a checagem continua não achando a teia dos
+     * outros, porque o banco nunca a devolveu.
+     */
+    async achaTeia(id, usuario_id) {
+      return um(
+        await chama(
+          `/teias?id=eq.${encodeURIComponent(id)}` +
+            `&usuario_id=eq.${encodeURIComponent(usuario_id)}&limit=1`,
+        ),
+      );
+    },
+
+    async atualizaTeia(id, usuario_id, campos) {
+      return um(
+        await chama(
+          `/teias?id=eq.${encodeURIComponent(id)}&usuario_id=eq.${encodeURIComponent(usuario_id)}`,
+          {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+              ...campos,
+              // A contagem acompanha o mapa sozinha — ver a versão local.
+              ...(campos.mapa ? { n_notas: campos.mapa.notas?.length ?? 0 } : {}),
+              atualizada_em: new Date().toISOString(),
+            }),
+          },
+        ),
+      );
+    },
+
+    async apagaTeia(id, usuario_id) {
+      const r = await chama(
+        `/teias?id=eq.${encodeURIComponent(id)}&usuario_id=eq.${encodeURIComponent(usuario_id)}`,
+        { method: "DELETE", headers: { Prefer: "return=representation" } },
+      );
+      return Array.isArray(r) ? r.length > 0 : Boolean(r);
+    },
+
+    // -------------------------------------------------------- critérios
+
+    async achaCriterios(objetivo) {
+      return um(await chama(`/criterios?objetivo=eq.${encodeURIComponent(objetivo)}&limit=1`));
+    },
+
+    async gravaCriterios(objetivo, criterios) {
+      // upsert: o mesmo objetivo pesquisado de novo sobrescreve o que havia,
+      // em vez de estourar a chave primária.
+      await chama("/criterios", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify({ objetivo, criterios, quando: new Date().toISOString() }),
+      });
     },
   };
 }

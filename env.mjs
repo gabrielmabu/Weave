@@ -32,7 +32,11 @@ export function carregaEnv(caminho = join(AQUI, ".env")) {
     if (corte < 0) continue;
     const chave = linha.slice(0, corte).trim();
     if (!chave || chave.startsWith("#")) continue;
-    if (process.env[chave]) continue; // já veio do ambiente
+    // `!== undefined`, e não a simples verdade do valor: definir uma variável
+    // como VAZIA no ambiente é uma decisão ("não use Supabase agora"), e deixar
+    // o arquivo sobrescrevê-la tornaria impossível desligar pelo ambiente algo
+    // que está ligado no .env.
+    if (process.env[chave] !== undefined) continue; // já veio do ambiente
     process.env[chave] = linha.slice(corte + 1).trim().replace(/^["']|["']$/g, "");
   }
   return process.env;

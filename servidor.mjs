@@ -22,7 +22,8 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from "
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { pdfParaNotas, comRelator } from "./ia.mjs";
-import { render } from "./render.mjs";
+import { render, mermaidDoTemplate } from "./render.mjs";
+import { normalizaMapa, valida, sha1 } from "./mapa.mjs";
 import { abreArmazenamento } from "./armazenamento.mjs";
 import {
   geraHash, conferaSenha, geraToken, expiraEm,
@@ -57,14 +58,19 @@ const jobs = new Map();
 const fila = [];
 let rodando = false;
 
-const criaJob = (nome, objetivo, usuarioId) => {
+const criaJob = ({ nome, nomeTeia, objetivo, foco, usuarioId }) => {
   const id = randomUUID().slice(0, 8);
   jobs.set(id, {
-    id, nome, objetivo, usuarioId,
+    id, nome, nomeTeia, objetivo, foco, usuarioId,
     estado: "na fila",
     progresso: [],
     criadoEm: Date.now(),
     erro: null,
+    // Preenchidos ao terminar. `mapa` fica em memória mesmo depois de salvo:
+    // é o que permite baixar o resultado se o banco recusar a gravação, em vez
+    // de jogar fora uma rodada já paga.
+    mapa: null,
+    teiaId: null,
   });
   return id;
 };
@@ -96,23 +102,52 @@ async function processa(id) {
   };
 
   const pdf = join(TRABALHO, `${id}.pdf`);
-  const html = join(TRABALHO, `${id}.html`);
 
   try {
     // Chamado `mapa`, não `dados`: no escopo do módulo `dados` é o
     // armazenamento, e sombreá-lo aqui faria o log de acesso escrever no
     // objeto errado sem erro nenhum.
-    const mapa = await comRelator(anota, () =>
+    const bruto = await comRelator(anota, () =>
       pdfParaNotas(pdf, {
         objetivo: job.objetivo,
         checkpoint: join(TRABALHO, `${id}.checkpoint.json`),
       }),
     );
-    writeFileSync(html, render(mapa), "utf8");
+
+    const mapa = normalizaMapa(bruto, {
+      nome: job.nome,
+      quando: new Date().toISOString(),
+      hash: sha1(readFileSync(pdf)),
+    });
+    const erros = valida(mapa);
+    if (erros.length) throw new Error(`mapa inválido:\n  - ${erros.join("\n  - ")}`);
+
+    job.mapa = mapa;
     job.notas = mapa.notas.length;
     job.grupos = mapa.grupos.length;
     job.titulo = mapa.titulo;
-    job.estado = "pronto";
+
+    // A partir daqui a rodada já foi paga. Se o banco recusar, o estado diz
+    // isso com todas as letras e o mapa continua baixável pelo job — perder
+    // trabalho pago por causa de uma indisponibilidade seria o pior desfecho.
+    try {
+      const teia = await dados.criaTeia({
+        usuario_id: job.usuarioId,
+        nome: job.nomeTeia || mapa.titulo,
+        objetivo: job.objetivo,
+        foco: job.foco,
+        mapa,
+      });
+      job.teiaId = teia.id;
+      job.estado = "pronto";
+      anota(`teia salva: ${teia.nome}`);
+    } catch (e) {
+      job.estado = "nao salvo";
+      job.erro =
+        `o mapa ficou pronto mas o banco recusou a gravação: ${e.message}\n` +
+        "Baixe o arquivo agora — ele ainda está aqui, mas não sobrevive a um reinício.";
+      anota("! mapa pronto, gravação no banco falhou — baixe antes de fechar");
+    }
   } catch (e) {
     job.estado = "erro";
     job.erro = e.message;
@@ -277,9 +312,11 @@ app.post(
     }
 
     const objetivo = (req.query.objetivo || "").toString().slice(0, 500);
+    const foco = (req.query.foco || "").toString().slice(0, 500);
     const nome = (req.query.nome || "documento.pdf").toString().slice(0, 120);
+    const nomeTeia = (req.query.teia || "").toString().trim().slice(0, 120);
 
-    const id = criaJob(nome, objetivo, req.usuario.id);
+    const id = criaJob({ nome, nomeTeia, objetivo, foco, usuarioId: req.usuario.id });
     writeFileSync(join(TRABALHO, `${id}.pdf`), req.body);
 
     // O log entra aqui, no envio, e não ao terminar: se o trabalho falhar ou o
@@ -328,22 +365,122 @@ app.get("/api/jobs/:id", autoriza, (req, res) => {
     titulo: job.titulo,
     notas: job.notas,
     grupos: job.grupos,
+    teiaId: job.teiaId,
     segundos: Math.round((Date.now() - job.criadoEm) / 1000),
   });
 });
 
+/**
+ * Resgate: baixar o mapa direto do job.
+ *
+ * Existe para o caso "pronto mas não salvo" — quando a rodada foi paga e o
+ * banco recusou a gravação. Fora disso, quem baixa é /api/teias/:id/html.
+ */
 app.get("/api/jobs/:id/html", autoriza, (req, res) => {
   const job = meuJob(req, res);
   if (!job) return res.status(404).send("job não encontrado");
-  if (job.estado !== "pronto") return res.status(409).send(`job está em: ${job.estado}`);
+  if (!job.mapa) return res.status(409).send(`job está em: ${job.estado}`);
+  enviaHtml(res, job.mapa, { baixar: true, nome: job.titulo || job.nome });
+});
 
-  const arquivo = join(TRABALHO, `${job.id}.html`);
-  if (!existsSync(arquivo)) return res.status(410).send("arquivo expirou (o servidor reiniciou)");
+// --------------------------------------------------------------------- teias
 
-  const limpo = (job.titulo || job.nome).replace(/[^\p{L}\p{N} .-]/gu, "").trim() || "mapa";
+/**
+ * O HTML sai do JSON na hora, e não de um arquivo em disco.
+ *
+ * Renderizar custa 0,2 s e zero de cota, então guardar o resultado nunca
+ * compensou o problema que criava: o disco do Render é apagado a cada deploy,
+ * e o link de download morria junto ("arquivo expirou"). Com o mapa no banco,
+ * esse erro deixa de existir.
+ *
+ * Duas modalidades de mermaid pelo mesmo motivo: embutido tem 3,3 MB e precisa
+ * estar lá no arquivo que se leva embora; para ver aqui dentro, é servido à
+ * parte e o navegador cacheia — 3,38 MB viram 207 KB por abertura.
+ */
+function enviaHtml(res, mapa, { baixar, nome }) {
+  const html = render(mapa, { mermaid: baixar ? "embutido" : "externo" });
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="${limpo}.html"`);
-  res.send(readFileSync(arquivo));
+  if (baixar) {
+    const limpo = String(nome ?? "mapa").replace(/[^\p{L}\p{N} .-]/gu, "").trim() || "mapa";
+    res.setHeader("Content-Disposition", `attachment; filename="${limpo}.html"`);
+  }
+  res.send(html);
+}
+
+/** O bundle do mermaid, extraído do template uma vez e servido à parte. */
+let MERMAID = null;
+app.get("/mermaid.js", (_req, res) => {
+  MERMAID ??= mermaidDoTemplate();
+  res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+  // Imutável: o conteúdo só muda quando o template muda, o que implica deploy.
+  res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+  res.send(MERMAID);
+});
+
+app.get("/api/teias", autoriza, async (req, res) => {
+  try {
+    // `listaTeias` já vem sem o mapa e com o que a tela precisa. Nenhuma
+    // consulta por teia: dez teias seriam dez idas ao banco e 1,5 MB de JSON
+    // para desenhar dez linhas de texto.
+    const lista = await dados.listaTeias(req.usuario.id);
+    res.json(
+      lista.map((t) => ({
+        id: t.id,
+        nome: t.nome,
+        objetivo: t.objetivo,
+        atualizada_em: t.atualizada_em,
+        notas: t.n_notas ?? 0,
+        fontes: (t.fontes ?? []).map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo })),
+      })),
+    );
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+/**
+ * Toda rota de teia passa por aqui.
+ *
+ * O dono já é filtro dentro de `achaTeia`, então uma teia de outra pessoa nem
+ * chega a ser lida do banco. O 404 (e não 403) é para não confirmar que o id
+ * existe — mesmo cuidado que `meuJob` já tinha.
+ */
+async function minhaTeia(req, res) {
+  try {
+    const teia = await dados.achaTeia(req.params.id, req.usuario.id);
+    if (!teia) {
+      res.status(404).json({ erro: "teia não encontrada" });
+      return null;
+    }
+    return teia;
+  } catch (e) {
+    res.status(503).json({ erro: `banco indisponível: ${e.message}` });
+    return null;
+  }
+}
+
+app.get("/api/teias/:id", autoriza, async (req, res) => {
+  const teia = await minhaTeia(req, res);
+  if (teia) res.json(teia);
+});
+
+app.get("/api/teias/:id/html", autoriza, async (req, res) => {
+  const teia = await minhaTeia(req, res);
+  if (!teia) return;
+  enviaHtml(res, normalizaMapa(teia.mapa, { nome: teia.nome }), {
+    baixar: req.query.baixar === "1",
+    nome: teia.nome,
+  });
+});
+
+app.delete("/api/teias/:id", autoriza, async (req, res) => {
+  try {
+    const foi = await dados.apagaTeia(req.params.id, req.usuario.id);
+    if (!foi) return res.status(404).json({ erro: "teia não encontrada" });
+    res.status(204).end();
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
 });
 
 // Erro do express.raw (arquivo acima do limite) chega aqui.

@@ -13,6 +13,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import MarkdownIt from "markdown-it";
+import { valida, normalizaMapa, ehCruzamento } from "./mapa.mjs";
+
+// Re-exportado porque o formato do mapa mora em mapa.mjs, mas quem chama o
+// render é quem quer saber se o JSON presta. Poupa um import a mais em cada
+// ponto de uso.
+export { valida };
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
@@ -217,49 +223,21 @@ function coresPorGrupo(grupos) {
  * um erro do modelo viraria "o grafo saiu meio vazio" em vez de uma
  * mensagem dizendo o que deu errado.
  */
-export function valida(dados) {
-  const erros = [];
-  if (!dados || typeof dados !== "object") return ["JSON raiz não é um objeto"];
-  if (!dados.titulo) erros.push("falta 'titulo'");
-  if (!Array.isArray(dados.grupos) || dados.grupos.length === 0)
-    erros.push("'grupos' precisa ser uma lista não vazia");
-  if (!Array.isArray(dados.notas) || dados.notas.length === 0)
-    erros.push("'notas' precisa ser uma lista não vazia");
-  if (erros.length) return erros;
-
-  const grupos = new Set(dados.grupos);
-  const ids = new Set();
-
-  for (const [i, nota] of dados.notas.entries()) {
-    const onde = `notas[${i}]`;
-    if (!nota.id) {
-      erros.push(`${onde}: falta 'id'`);
-      continue;
-    }
-    if (nota.id === "home") erros.push(`${onde}: id 'home' é reservado`);
-    if (ids.has(nota.id)) erros.push(`${onde}: id duplicado '${nota.id}'`);
-    ids.add(nota.id);
-    if (!nota.titulo) erros.push(`${onde} (${nota.id}): falta 'titulo'`);
-    if (!nota.grupo) erros.push(`${onde} (${nota.id}): falta 'grupo'`);
-    else if (!grupos.has(nota.grupo))
-      erros.push(`${onde} (${nota.id}): grupo '${nota.grupo}' não está em 'grupos'`);
-  }
-
-  // Ids órfãos em 'relacionado' são o modo de falha mais provável do modelo.
-  for (const nota of dados.notas) {
-    for (const alvo of nota.relacionado ?? []) {
-      if (!ids.has(alvo))
-        erros.push(`nota '${nota.id}': relacionado aponta para id inexistente '${alvo}'`);
-    }
-  }
-  return erros;
-}
-
 /** Monta nodes/links no formato que o grafo do template consome. */
 function montaGrafo(dados) {
+  // `fontes` e `cruza` viajam por nó para que o desenho possa distinguir de
+  // onde veio o quê. Preenchimento continua sendo do grupo; a fonte aparece no
+  // contorno. Sem essa separação seriam dois sistemas de cor brigando pelo
+  // mesmo pixel.
   const nodes = [
-    { id: "home", label: "🏠 Home", group: dados.grupos[0] },
-    ...dados.notas.map((n) => ({ id: n.id, label: n.titulo, group: n.grupo })),
+    { id: "home", label: "🏠 Home", group: dados.grupos[0], fontes: [], cruza: false },
+    ...dados.notas.map((n) => ({
+      id: n.id,
+      label: n.titulo,
+      group: n.grupo,
+      fontes: n.fontes ?? [],
+      cruza: ehCruzamento(n),
+    })),
   ];
 
   const links = [];
@@ -278,7 +256,12 @@ function montaGrafo(dados) {
   for (const nota of dados.notas)
     for (const alvo of nota.relacionado ?? []) adiciona(nota.id, alvo);
 
-  return { group_order: dados.grupos, nodes, links };
+  return {
+    group_order: dados.grupos,
+    fontes: (dados.fontes ?? []).map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo })),
+    nodes,
+    links,
+  };
 }
 
 function montaSidebar(dados) {
@@ -359,7 +342,28 @@ function preenche(template, valores) {
   return out;
 }
 
-export function render(dados, { template } = {}) {
+/**
+ * O mermaid embutido são 3,3 dos 3,4 MB do template.
+ *
+ * Quando o mapa era só um arquivo para baixar, esse peso se pagava uma vez. Ver
+ * a teia dentro do app muda a conta: seriam 3,3 MB a cada abertura. Por isso as
+ * duas modalidades — `embutido` no que se exporta (precisa abrir offline) e
+ * `externo` no que se vê no app, onde o navegador cacheia o arquivo.
+ */
+const MARCA_MERMAID = /<!--MERMAID-->[\s\S]*?<!--\/MERMAID-->/;
+
+/** O bundle do mermaid isolado do template, para ser servido à parte. */
+export function mermaidDoTemplate(template) {
+  const tpl = template ?? readFileSync(join(AQUI, "template.html"), "utf8");
+  const bloco = tpl.match(MARCA_MERMAID)?.[0] ?? "";
+  return bloco.replace(/^<!--MERMAID-->\s*<script>/, "").replace(/<\/script>\s*<!--\/MERMAID-->$/, "");
+}
+
+export function render(dados, { template, mermaid = "embutido", mermaidSrc = "/mermaid.js" } = {}) {
+  // Normaliza ANTES de validar: mapas gerados antes de as fontes existirem não
+  // têm o campo, e reprovar aqui quebraria todo JSON já salvo em saida/.
+  dados = normalizaMapa(dados);
+
   const erros = valida(dados);
   if (erros.length) {
     const e = new Error(`JSON inválido:\n  - ${erros.join("\n  - ")}`);
@@ -367,7 +371,10 @@ export function render(dados, { template } = {}) {
     throw e;
   }
 
-  const tpl = template ?? readFileSync(join(AQUI, "template.html"), "utf8");
+  let tpl = template ?? readFileSync(join(AQUI, "template.html"), "utf8");
+  if (mermaid === "externo") {
+    tpl = tpl.replace(MARCA_MERMAID, `<script src="${mermaidSrc}"></script>`);
+  }
   const n = dados.notas.length;
 
   return preenche(tpl, {

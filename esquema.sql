@@ -61,15 +61,56 @@ create index if not exists acessos_usuario_idx on acessos (usuario_id);
 create index if not exists acessos_quando_idx on acessos (quando desc);
 create index if not exists acessos_job_idx on acessos (job_id);
 
+-- -------------------------------------------------------------------- teias
+
+-- Uma teia é um mapa que tem nome, dono e vida longa: você volta nela e
+-- acrescenta fontes. É o que a versão anterior não tinha — ali o mapa era um
+-- arquivo em disco, e o disco do Render é apagado a cada deploy.
+--
+-- O mapa inteiro mora num jsonb, com a lista de fontes DENTRO dele. Mapa e
+-- fontes mudam sempre juntos, e uma escrita só nunca deixa estado pela metade
+-- (teia com fonte registrada e nota nenhuma, por exemplo). O de 51 notas tem
+-- 146 KB; o plano gratuito dá 500 MB.
+create table if not exists teias (
+  id            uuid primary key default gen_random_uuid(),
+  usuario_id    uuid not null references usuarios(id) on delete cascade,
+  nome          text not null,
+  objetivo      text,
+  foco          text,
+  mapa          jsonb not null,
+  -- Contagem repetida de propósito. A lista de "Minhas Teias" só quer nome e
+  -- tamanho; sem esta coluna, mostrar "51 notas" obrigaria a puxar os 146 KB
+  -- do mapa de cada teia só para contar. A lista de fontes vem do próprio
+  -- jsonb (mapa->fontes), que é pequena.
+  n_notas       int not null default 0,
+  criada_em     timestamptz not null default now(),
+  atualizada_em timestamptz not null default now()
+);
+
+create index if not exists teias_usuario_idx on teias (usuario_id, atualizada_em desc);
+
+-- ---------------------------------------------------------------- critérios
+
+-- Cache da pesquisa que descobre o que é essencial para um objetivo ("passar
+-- na OAB"). A chave é o OBJETIVO, não o usuário: sem isso, dez pessoas com o
+-- mesmo objetivo pagariam dez pesquisas iguais.
+create table if not exists criterios (
+  objetivo   text primary key,
+  criterios  text not null,
+  quando     timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------- RLS
 -- Nenhuma política é criada de propósito. Com RLS ligado e sem política, o
 -- acesso pela chave anônima (a que poderia vazar no navegador) é negado em
 -- tudo. A service key usada pelo servidor ignora RLS — então o servidor
 -- funciona e o cliente não alcança nada diretamente.
 
-alter table usuarios enable row level security;
-alter table sessoes  enable row level security;
-alter table acessos  enable row level security;
+alter table usuarios  enable row level security;
+alter table sessoes   enable row level security;
+alter table acessos   enable row level security;
+alter table teias     enable row level security;
+alter table criterios enable row level security;
 
 -- ------------------------------------------------------------------ limpeza
 -- Sessão vencida não serve para nada e só acumula. Rode de vez em quando, ou

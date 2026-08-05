@@ -100,7 +100,7 @@ if (!url || !chave) {
   }
 
   const cabecalhos = { apikey: chave, Authorization: `Bearer ${chave}` };
-  for (const tabela of ["usuarios", "sessoes", "acessos"]) {
+  for (const tabela of ["usuarios", "sessoes", "acessos", "teias", "criterios"]) {
     try {
       const r = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${tabela}?limit=1`, {
         headers: cabecalhos,
