@@ -260,6 +260,34 @@ addEventListener("beforeunload", (e) => {
 
 const mostra = (id, sim) => $(id).classList.toggle("oculto", !sim);
 
+/**
+ * Lê a resposta como JSON — e explica quando ela não é.
+ *
+ * `r.json()` direto produzia o erro mais inútil que este app já mostrou:
+ * "Unexpected token '<', "<!DOCTYPE "... is not valid JSON". Isso acontece
+ * sempre que a resposta é uma PÁGINA em vez de dados, e quase sempre por um
+ * motivo que não tem nada a ver com o arquivo enviado: deploy em andamento,
+ * serviço acordando do descanso, ou um erro do proxy do Render. A mensagem
+ * antiga mandava a pessoa procurar defeito no arquivo dela.
+ */
+async function leJson(r) {
+  const texto = await r.text();
+  try {
+    return JSON.parse(texto);
+  } catch {
+    if (r.status === 502 || r.status === 503 || r.status === 504) {
+      throw new Error(
+        "O servidor não respondeu (talvez esteja acordando ou publicando uma versão nova).\n" +
+        "Espere um minuto e tente de novo — o arquivo não tem nada a ver com isso.",
+      );
+    }
+    throw new Error(
+      `O servidor respondeu com uma página em vez de dados (HTTP ${r.status}).\n` +
+      "Costuma ser deploy em andamento ou o serviço reiniciando. Tente de novo em um minuto.",
+    );
+  }
+}
+
 // ------------------------------------------------------------------- conta
 //
 // A sessão vive num cookie httpOnly posto pelo servidor: o JavaScript daqui
@@ -301,7 +329,7 @@ $("#botaoConta").onclick = async () => {
       credentials: "same-origin",
       body: JSON.stringify(corpo),
     });
-    const j = await r.json();
+    const j = await leJson(r);
     if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
     entrou(j);
   } catch (e) {
@@ -331,7 +359,7 @@ $("#sair").onclick = async () => {
 (async () => {
   try {
     const r = await fetch("/api/eu", { credentials: "same-origin" });
-    if (r.ok) return entrou(await r.json());
+    if (r.ok) return entrou(await leJson(r));
   } catch { /* servidor fora do ar; cai na tela de entrar */ }
   mostra("#cartaoConta", true);
 })();
@@ -354,8 +382,8 @@ async function carregaTeias() {
   const lista = $("#listaTeias");
   try {
     const r = await fetch("/api/teias", { credentials: "same-origin" });
-    if (!r.ok) throw new Error((await r.json()).erro || `erro ${r.status}`);
-    const teias = await r.json();
+    const teias = await leJson(r);
+    if (!r.ok) throw new Error(teias.erro || `erro ${r.status}`);
 
     if (!teias.length) {
       lista.innerHTML = `<p class="vazio">Nenhuma teia ainda. Comece mandando um arquivo.</p>`;
@@ -456,6 +484,27 @@ const marcaArquivo = (f) => {
     alert(`Não sei ler esse arquivo. Aceito: ${ACEITOS.join(", ")}`);
     return;
   }
+  /*
+   * Arquivo de 0 byte quase nunca é arquivo vazio.
+   *
+   * No Windows com OneDrive ligado, um arquivo pode estar "na nuvem" — o
+   * Explorer mostra o tamanho normal, mas o conteúdo não está no disco, e o
+   * navegador lê 0 byte. Enviar assim faria o servidor recusar com "corpo
+   * vazio", que manda a pessoa procurar defeito no lugar errado.
+   *
+   * A solução é do lado de lá: abrir o arquivo uma vez, ou clicar com o botão
+   * direito e escolher "Sempre manter neste dispositivo".
+   */
+  if (f && f.size === 0) {
+    alert(
+      `"${f.name}" chegou aqui com 0 byte.\n\n` +
+      "Se ele tem tamanho normal no Explorer, provavelmente está só na nuvem do " +
+      "OneDrive e ainda não foi baixado para o computador.\n\n" +
+      "Abra o arquivo uma vez, ou clique nele com o botão direito e escolha " +
+      "'Sempre manter neste dispositivo'. Depois tente de novo.",
+    );
+    return;
+  }
   arquivo = f;
   $("#nomeArquivo").textContent = f
     ? `${f.name} · ${(f.size / 1024 / 1024).toFixed(1)} MB`
@@ -504,7 +553,7 @@ $("#enviar").onclick = async () => {
       credentials: "same-origin",
       body: arquivo,
     });
-    const j = await r.json();
+    const j = await leJson(r);
     if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
 
     jobId = j.id;
@@ -608,7 +657,7 @@ async function acompanha() {
   try {
     const r = await fetch(`/api/jobs/${jobId}`, { credentials: "same-origin" });
     if (r.status === 404) { localStorage.removeItem("weave_job"); jobId = null; return voltaParaLista(); }
-    const j = await r.json();
+    const j = await leJson(r);
 
     $("#andamento").textContent = j.progresso.length ? j.progresso.join("\n") : "na fila…";
     $("#andamento").scrollTop = $("#andamento").scrollHeight;
