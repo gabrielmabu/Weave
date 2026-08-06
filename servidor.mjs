@@ -21,9 +21,9 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname } from "node:path";
-import { fontesParaNotas, comRelator } from "./ia.mjs";
+import { fontesParaNotas, tecerFonte, comRelator } from "./ia.mjs";
 import { render, mermaidDoTemplate } from "./render.mjs";
-import { normalizaMapa, valida, sha1 } from "./mapa.mjs";
+import { normalizaMapa, valida, sha1, juntaMapa, proximoIdDeFonte } from "./mapa.mjs";
 import { aceita, EXTENSOES_ACEITAS } from "./fontes.mjs";
 import { abreArmazenamento } from "./armazenamento.mjs";
 import {
@@ -103,25 +103,16 @@ async function processa(id) {
   };
 
   const arquivo = job.arquivo;
+  const fonte = [{ caminho: arquivo, nome: job.nome }];
+  const checkpoint = join(TRABALHO, `${id}.checkpoint.json`);
 
   try {
     // Chamado `mapa`, não `dados`: no escopo do módulo `dados` é o
     // armazenamento, e sombreá-lo aqui faria o log de acesso escrever no
     // objeto errado sem erro nenhum.
-    const bruto = await comRelator(anota, () =>
-      fontesParaNotas([{ caminho: arquivo, nome: job.nome }], {
-        objetivo: job.objetivo,
-        checkpoint: join(TRABALHO, `${id}.checkpoint.json`),
-      }),
-    );
-
-    const mapa = normalizaMapa(bruto, {
-      nome: job.nome,
-      quando: new Date().toISOString(),
-      hash: sha1(readFileSync(arquivo)),
-    });
-    const erros = valida(mapa);
-    if (erros.length) throw new Error(`mapa inválido:\n  - ${erros.join("\n  - ")}`);
+    const mapa = job.teiaId
+      ? await tece(job, fonte, checkpoint, anota)
+      : await cria(job, fonte, checkpoint, anota, arquivo);
 
     job.mapa = mapa;
     job.notas = mapa.notas.length;
@@ -132,13 +123,16 @@ async function processa(id) {
     // isso com todas as letras e o mapa continua baixável pelo job — perder
     // trabalho pago por causa de uma indisponibilidade seria o pior desfecho.
     try {
-      const teia = await dados.criaTeia({
-        usuario_id: job.usuarioId,
-        nome: job.nomeTeia || mapa.titulo,
-        objetivo: job.objetivo,
-        foco: job.foco,
-        mapa,
-      });
+      const teia = job.teiaId
+        ? await dados.atualizaTeia(job.teiaId, job.usuarioId, { mapa })
+        : await dados.criaTeia({
+            usuario_id: job.usuarioId,
+            nome: job.nomeTeia || mapa.titulo,
+            objetivo: job.objetivo,
+            foco: job.foco,
+            mapa,
+          });
+      if (!teia) throw new Error("a teia sumiu enquanto o trabalho rodava");
       job.teiaId = teia.id;
       job.estado = "pronto";
       anota(`teia salva: ${teia.nome}`);
@@ -170,6 +164,71 @@ async function processa(id) {
     // O arquivo enviado não precisa sobreviver ao processamento.
     try { if (existsSync(arquivo)) unlinkSync(arquivo); } catch { /* segue */ }
   }
+}
+
+/** Teia nova: a fonte é a primeira, e o mapa nasce dela. */
+async function cria(job, fonte, checkpoint, anota, arquivo) {
+  const bruto = await comRelator(anota, () =>
+    fontesParaNotas(fonte, { objetivo: job.objetivo, foco: job.foco, checkpoint }),
+  );
+  const mapa = normalizaMapa(bruto, {
+    nome: job.nome,
+    quando: new Date().toISOString(),
+    hash: sha1(readFileSync(arquivo)),
+  });
+  const erros = valida(mapa);
+  if (erros.length) throw new Error(`mapa inválido:\n  - ${erros.join("\n  - ")}`);
+  return mapa;
+}
+
+/**
+ * Teia existente: a fonte se soma ao que já está lá.
+ *
+ * A teia é relida do banco AGORA, e não no momento do envio: entre um e outro
+ * pode ter havido outra tecelagem, e partir da versão velha apagaria o que ela
+ * acrescentou.
+ */
+async function tece(job, fonte, checkpoint, anota) {
+  const teia = await dados.achaTeia(job.teiaId, job.usuarioId);
+  if (!teia) throw new Error("teia não encontrada");
+
+  const atual = normalizaMapa(teia.mapa, { nome: teia.nome });
+  const resultado = await comRelator(anota, () =>
+    tecerFonte(atual, fonte, {
+      objetivo: teia.objetivo ?? job.objetivo,
+      foco: job.foco,
+      checkpoint,
+    }),
+  );
+
+  const { mapa, relatorio } = juntaMapa(atual, {
+    fonte: { ...resultado.fonte, id: proximoIdDeFonte(atual.fontes) },
+    notasNovas: resultado.notasNovas,
+    gruposNovos: resultado.gruposNovos,
+    reforcos: resultado.reforcos,
+  });
+
+  // Enriquecimento aplicado depois da junção, sobre o mapa já montado.
+  const porId = new Map(mapa.notas.map((n) => [n.id, n]));
+  let enriquecidas = 0;
+  for (const [id, conteudo] of Object.entries(resultado.enriquecidos ?? {})) {
+    const nota = porId.get(id);
+    if (nota && conteudo?.trim()) { nota.conteudo = conteudo; enriquecidas++; }
+  }
+
+  anota(
+    `${relatorio.novas} nota(s) nova(s) · ${relatorio.reforcadas} reforçada(s) · ` +
+      `${enriquecidas} reescrita(s) · ${relatorio.ligacoes} ligação(ões) atravessando fontes`,
+  );
+  if (relatorio.descartadas) anota(`! ${relatorio.descartadas} ligação(ões) inválida(s) descartada(s)`);
+  if (relatorio.ilhas.length) anota(`! ${relatorio.ilhas.length} nota(s) sem ligação com o mapa antigo`);
+
+  // A validação roda DEPOIS da junção, não só na geração inicial. Juntar notas
+  // novas às antigas é exatamente onde nasce ligação para id inexistente, e é
+  // o defeito que some do gráfico sem dar erro nenhum.
+  const erros = valida(mapa);
+  if (erros.length) throw new Error(`a junção produziu um mapa inválido:\n  - ${erros.join("\n  - ")}`);
+  return mapa;
 }
 
 // -------------------------------------------------------------------- auth
@@ -300,54 +359,62 @@ app.get("/api/acessos", autoriza, async (req, res) => {
   }
 });
 
-app.post(
-  "/api/jobs",
-  autoriza,
-  // `type: () => true` porque o corpo agora pode ser planilha, DOCX ou texto,
-  // e nem todo navegador acerta o Content-Type de arquivo escolhido pelo
-  // usuário. Quem decide o formato é a extensão do nome, conferida abaixo.
-  express.raw({ type: () => true, limit: `${TETO_MB}mb` }),
-  (req, res) => {
-    if (!req.body?.length) return res.status(400).json({ erro: "corpo vazio" });
+// `type: () => true` porque o corpo agora pode ser planilha, DOCX ou texto,
+// e nem todo navegador acerta o Content-Type de arquivo escolhido pelo
+// usuário. Quem decide o formato é a extensão do nome, conferida no enfileira.
+const corpoCru = express.raw({ type: () => true, limit: `${TETO_MB}mb` });
 
-    const objetivo = (req.query.objetivo || "").toString().slice(0, 500);
-    const foco = (req.query.foco || "").toString().slice(0, 500);
-    const nome = (req.query.nome || "documento.pdf").toString().slice(0, 120);
-    const nomeTeia = (req.query.teia || "").toString().trim().slice(0, 120);
+/**
+ * Recebe o arquivo e põe na fila.
+ *
+ * Criar teia e tecer numa teia existente diferem em UMA coisa — se `teiaId`
+ * vem preenchido. Todo o resto (validar formato, gravar o temporário, registrar
+ * no log de acesso, enfileirar) é idêntico, e duplicar isso em duas rotas seria
+ * garantir que uma correção futura entrasse só numa delas.
+ */
+function enfileira(req, res, teiaId = null) {
+  if (!req.body?.length) return res.status(400).json({ erro: "corpo vazio" });
 
-    if (!aceita(nome)) {
-      return res.status(400).json({
-        erro: `não sei ler '${nome}'. Aceito: ${EXTENSOES_ACEITAS.join(", ")}`,
-      });
-    }
+  const objetivo = (req.query.objetivo || "").toString().slice(0, 500);
+  const foco = (req.query.foco || "").toString().slice(0, 500);
+  const nome = (req.query.nome || "documento.pdf").toString().slice(0, 120);
+  const nomeTeia = (req.query.teia || "").toString().trim().slice(0, 120);
 
-    const id = criaJob({ nome, nomeTeia, objetivo, foco, usuarioId: req.usuario.id });
-    // A extensão fica no arquivo temporário: é por ela que o fontes.mjs sabe
-    // se converte ou manda como está.
-    const arquivo = join(TRABALHO, `${id}${extname(nome).toLowerCase()}`);
-    jobs.get(id).arquivo = arquivo;
-    writeFileSync(arquivo, req.body);
+  if (!aceita(nome)) {
+    return res.status(400).json({
+      erro: `não sei ler '${nome}'. Aceito: ${EXTENSOES_ACEITAS.join(", ")}`,
+    });
+  }
 
-    // O log entra aqui, no envio, e não ao terminar: se o trabalho falhar ou o
-    // servidor cair no meio, você ainda precisa saber que alguém mandou aquilo.
-    dados
-      .registraAcesso({
-        usuario_id: req.usuario.id,
-        job_id: id,
-        arquivo: nome,
-        tamanho_bytes: req.body.length,
-        objetivo,
-        estado: "na fila",
-      })
-      .catch((e) => console.error(`log de acesso falhou: ${e.message}`));
+  const id = criaJob({ nome, nomeTeia, objetivo, foco, usuarioId: req.usuario.id });
+  const job = jobs.get(id);
+  job.teiaId = teiaId;
+  // A extensão fica no arquivo temporário: é por ela que o fontes.mjs sabe
+  // se converte ou manda como está.
+  job.arquivo = join(TRABALHO, `${id}${extname(nome).toLowerCase()}`);
+  writeFileSync(job.arquivo, req.body);
 
-    fila.push(id);
-    const posicao = fila.length;
-    proximo();
+  // O log entra aqui, no envio, e não ao terminar: se o trabalho falhar ou o
+  // servidor cair no meio, você ainda precisa saber que alguém mandou aquilo.
+  dados
+    .registraAcesso({
+      usuario_id: req.usuario.id,
+      job_id: id,
+      arquivo: nome,
+      tamanho_bytes: req.body.length,
+      objetivo,
+      estado: "na fila",
+    })
+    .catch((e) => console.error(`log de acesso falhou: ${e.message}`));
 
-    res.status(202).json({ id, posicaoNaFila: rodando ? posicao : 0 });
-  },
-);
+  fila.push(id);
+  const posicao = fila.length;
+  proximo();
+
+  res.status(202).json({ id, posicaoNaFila: rodando ? posicao : 0 });
+}
+
+app.post("/api/jobs", autoriza, corpoCru, (req, res) => enfileira(req, res));
 
 /**
  * Só o dono enxerga o próprio trabalho.
@@ -481,6 +548,28 @@ app.get("/api/teias/:id/html", autoriza, async (req, res) => {
     nome: teia.nome,
   });
 });
+
+/**
+ * O botão **+**: acrescenta uma fonte a uma teia que já existe.
+ *
+ * A checagem de dono é um middleware ANTES do `corpoCru`, e a ordem é o ponto:
+ * `express.raw` bufferiza a requisição inteira na memória, então deixá-lo
+ * primeiro faria o servidor guardar 18 MB para só depois descobrir que a teia
+ * é de outra pessoa. Responde 404, e não 403, pelo mesmo motivo de sempre —
+ * não confirmar que o id existe.
+ */
+app.post(
+  "/api/teias/:id/tecer",
+  autoriza,
+  async (req, res, next) => {
+    const teia = await minhaTeia(req, res);
+    if (!teia) return; // minhaTeia já respondeu
+    req.teiaId = teia.id;
+    next();
+  },
+  corpoCru,
+  (req, res) => enfileira(req, res, req.teiaId),
+);
 
 app.delete("/api/teias/:id", autoriza, async (req, res) => {
   try {

@@ -85,6 +85,92 @@ export function normalizaMapa(bruto, { nome, tipo, quando, hash } = {}) {
 export const ehCruzamento = (nota) => (nota.fontes?.length ?? 0) > 1;
 
 /**
+ * Junta o que a fonte nova rendeu ao mapa que já existia.
+ *
+ * É AQUI que nasce o defeito mais provável de todo o app: ligação apontando
+ * para id inexistente. O modelo cita ids que leu no índice, ids que ele mesmo
+ * acabou de inventar, e às vezes ids que não são nem uma coisa nem outra. Por
+ * isso esta função devolve o mapa E um relatório do que ela teve de descartar,
+ * e por isso `valida()` precisa rodar DEPOIS dela — não só na geração inicial.
+ *
+ * Os ids novos ganham prefixo da fonte (`f2-prazo`): sem isso, uma nota nova
+ * chamada `prazo` colidiria com a `prazo` que já existe e uma sobrescreveria a
+ * outra em silêncio.
+ */
+export function juntaMapa(base, { fonte, notasNovas = [], gruposNovos = [], reforcos = [] }) {
+  const mapa = structuredClone(base);
+  const relatorio = { novas: 0, reforcadas: 0, ligacoes: 0, descartadas: 0, ilhas: [] };
+
+  mapa.fontes = [...(mapa.fontes ?? []), fonte];
+  const idsAntigos = new Set(mapa.notas.map((n) => n.id));
+
+  // Prefixo por fonte, resolvido antes de qualquer ligação ser lida: as
+  // ligações citam os ids ORIGINAIS que o modelo devolveu, então é preciso
+  // saber de antemão em que cada um deles se transformou.
+  const renomeado = new Map();
+  for (const nota of notasNovas) {
+    if (!nota?.id || !nota.titulo || !nota.grupo) continue;
+    let novo = `${fonte.id}-${nota.id}`;
+    // Coincidência dupla é improvável, mas silenciosa se acontecer.
+    while (idsAntigos.has(novo) || [...renomeado.values()].includes(novo)) novo += "-2";
+    renomeado.set(nota.id, novo);
+  }
+
+  for (const g of gruposNovos) {
+    if (g && !mapa.grupos.includes(g)) mapa.grupos.push(g);
+  }
+
+  for (const nota of notasNovas) {
+    const id = renomeado.get(nota.id);
+    if (!id) continue;
+
+    // Grupo que o modelo inventou sem declarar em gruposNovos: em vez de
+    // descartar a nota, adota o grupo. Perder conteúdo pago por um descuido de
+    // formato seria pior do que ganhar um grupo a mais.
+    if (!mapa.grupos.includes(nota.grupo)) mapa.grupos.push(nota.grupo);
+
+    const antes = nota.relacionado?.length ?? 0;
+    const ligacoes = [];
+    for (const alvo of nota.relacionado ?? []) {
+      const resolvido = renomeado.get(alvo) ?? (idsAntigos.has(alvo) ? alvo : null);
+      if (resolvido && resolvido !== id && !ligacoes.includes(resolvido)) ligacoes.push(resolvido);
+    }
+    relatorio.descartadas += antes - ligacoes.length;
+    relatorio.ligacoes += ligacoes.filter((a) => idsAntigos.has(a)).length;
+
+    // Nota nova sem nenhuma ligação para o mapa antigo é uma ilha: fica
+    // pendurada sem se ligar a nada, e o gráfico mostra isso como um satélite
+    // solto. Vale relatar em vez de esconder.
+    if (!ligacoes.some((a) => idsAntigos.has(a))) relatorio.ilhas.push(id);
+
+    mapa.notas.push({
+      id,
+      titulo: nota.titulo,
+      grupo: nota.grupo,
+      resumo: nota.resumo ?? "",
+      conteudo: nota.conteudo ?? "",
+      relacionado: ligacoes,
+      fontes: [fonte.id],
+    });
+    relatorio.novas++;
+  }
+
+  // Reforço: a nota continua a mesma, mas passa a ser sustentada por mais uma
+  // fonte. É o que faz o nó virar cruzamento e ganhar destaque no gráfico.
+  const porId = new Map(mapa.notas.map((n) => [n.id, n]));
+  for (const r of reforcos) {
+    const nota = porId.get(r?.id);
+    if (!nota || !idsAntigos.has(r.id)) continue; // ignora reforço de nota que não existia
+    if (!nota.fontes.includes(fonte.id)) {
+      nota.fontes.push(fonte.id);
+      relatorio.reforcadas++;
+    }
+  }
+
+  return { mapa, relatorio };
+}
+
+/**
  * Confere o mapa inteiro e devolve a lista de problemas (vazia = está bom).
  *
  * Ids órfãos em `relacionado` são o modo de falha mais provável do modelo, e
