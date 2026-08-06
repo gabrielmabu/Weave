@@ -116,18 +116,49 @@ export function juntaMapa(base, { fonte, notasNovas = [], gruposNovos = [], refo
     renomeado.set(nota.id, novo);
   }
 
-  for (const g of gruposNovos) {
-    if (g && !mapa.grupos.includes(g)) mapa.grupos.push(g);
-  }
+  /**
+   * Grupo novo entra renumerado, continuando a sequência.
+   *
+   * O modelo devolve nomes no formato `NN - Tema` sem saber quais números já
+   * existem, e o resultado medido foi um segundo "06" e um "14" num mapa que
+   * ia só até 07. Na legenda isso aparece como dois grupos com o mesmo número
+   * e um salto sem explicação — e o prompt pedir "use os que já existem" não
+   * resolve, porque prompt é conselho e código é garantia.
+   */
+  const numeroDe = (g) => Number(String(g).match(/^\s*(\d+)/)?.[1] ?? NaN);
+  let maiorNumero = mapa.grupos.reduce((m, g) => {
+    const n = numeroDe(g);
+    return Number.isFinite(n) && n > m ? n : m;
+  }, 0);
+
+  const renomeadoGrupo = new Map();
+  const registraGrupo = (bruto) => {
+    if (!bruto) return null;
+    if (renomeadoGrupo.has(bruto)) return renomeadoGrupo.get(bruto);
+    if (mapa.grupos.includes(bruto)) { renomeadoGrupo.set(bruto, bruto); return bruto; }
+
+    const semNumero = String(bruto).replace(/^\s*\d+\s*-\s*/, "").trim();
+    // Mesmo tema com outro número é o mesmo grupo — juntar evita a legenda
+    // ganhar "Recursos" duas vezes só porque a numeração veio diferente.
+    const jaExiste = mapa.grupos.find(
+      (g) => g.replace(/^\s*\d+\s*-\s*/, "").trim().toLowerCase() === semNumero.toLowerCase(),
+    );
+    const final = jaExiste ?? `${String(++maiorNumero).padStart(2, "0")} - ${semNumero}`;
+    if (!jaExiste) mapa.grupos.push(final);
+    renomeadoGrupo.set(bruto, final);
+    return final;
+  };
+
+  for (const g of gruposNovos) registraGrupo(g);
 
   for (const nota of notasNovas) {
     const id = renomeado.get(nota.id);
     if (!id) continue;
 
-    // Grupo que o modelo inventou sem declarar em gruposNovos: em vez de
-    // descartar a nota, adota o grupo. Perder conteúdo pago por um descuido de
-    // formato seria pior do que ganhar um grupo a mais.
-    if (!mapa.grupos.includes(nota.grupo)) mapa.grupos.push(nota.grupo);
+    // Grupo que o modelo citou sem declarar em gruposNovos: em vez de
+    // descartar a nota, adota o grupo (renumerado). Perder conteúdo pago por
+    // um descuido de formato seria pior do que ganhar um grupo a mais.
+    const grupo = registraGrupo(nota.grupo);
 
     const antes = nota.relacionado?.length ?? 0;
     const ligacoes = [];
@@ -146,7 +177,7 @@ export function juntaMapa(base, { fonte, notasNovas = [], gruposNovos = [], refo
     mapa.notas.push({
       id,
       titulo: nota.titulo,
-      grupo: nota.grupo,
+      grupo,
       resumo: nota.resumo ?? "",
       conteudo: nota.conteudo ?? "",
       relacionado: ligacoes,

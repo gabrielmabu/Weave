@@ -282,3 +282,45 @@ test("tecer o mesmo arquivo de novo é recusado sem gastar chamada", async () =>
   );
   assert.equal(enviados.length, 0, "não podia ter chamado a API");
 });
+
+// ------------------------------------------------------- numeração de grupos
+
+test("grupo novo é renumerado para continuar a sequência", () => {
+  // Medido numa tecelagem real: o mapa ia até "02 - Recursos" e o modelo
+  // devolveu "06 - Competência" e "14 - Recursos". Na legenda isso aparece
+  // como número repetido e salto sem explicação. O prompt pede para reusar os
+  // grupos existentes, mas prompt é conselho — a garantia é aqui.
+  const { mapa } = juntaMapa(mapaAntigo(), {
+    fonte: fonteNova,
+    gruposNovos: ["06 - Execução", "14 - Provas"],
+    notasNovas: [
+      { id: "a", titulo: "A", grupo: "06 - Execução", resumo: "x", relacionado: ["agravo"] },
+      { id: "b", titulo: "B", grupo: "14 - Provas", resumo: "y", relacionado: ["agravo"] },
+    ],
+    reforcos: [],
+  });
+
+  assert.deepEqual(mapa.grupos, [
+    "01 - Competência", "02 - Recursos", "03 - Execução", "04 - Provas",
+  ]);
+  assert.equal(mapa.notas.find((n) => n.id === "f2-a").grupo, "03 - Execução");
+  assert.equal(mapa.notas.find((n) => n.id === "f2-b").grupo, "04 - Provas");
+  assert.deepEqual(valida(mapa), []);
+});
+
+test("mesmo tema com outro número vira o grupo que já existe", () => {
+  // Senão a legenda ganharia "Recursos" duas vezes só porque a numeração veio
+  // diferente, e as notas do mesmo assunto ficariam em cores distintas.
+  const { mapa } = juntaMapa(mapaAntigo(), {
+    fonte: fonteNova,
+    gruposNovos: ["09 - Recursos"],
+    notasNovas: [
+      { id: "c", titulo: "C", grupo: "09 - Recursos", resumo: "z", relacionado: ["agravo"] },
+    ],
+    reforcos: [],
+  });
+
+  assert.deepEqual(mapa.grupos, ["01 - Competência", "02 - Recursos"]);
+  assert.equal(mapa.notas.find((n) => n.id === "f2-c").grupo, "02 - Recursos");
+  assert.deepEqual(valida(mapa), []);
+});

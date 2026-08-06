@@ -59,7 +59,12 @@ a{color:var(--ouro);text-decoration:none}a:hover{text-decoration:underline}
 
 .graph-top .graph-title{color:#eae6da;font-size:17px;font-weight:600;pointer-events:auto;display:flex;align-items:center;gap:8px}
 
-.graph-top .graph-close{margin-left:auto;pointer-events:auto;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#eae6da;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer}
+.graph-acoes{margin-left:auto;display:flex;gap:6px;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end}
+.graph-acao{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#b9b3a3;font:inherit;font-size:12.5px;font-weight:600;padding:7px 11px;border-radius:8px;cursor:pointer}
+.graph-acao:hover{background:rgba(198,161,91,.18);border-color:rgba(198,161,91,.5);color:#eae6da}
+.graph-acao.ativo{background:#c6a15b;border-color:#c6a15b;color:#08080a}
+@media(max-width:700px){.graph-acao{font-size:11.5px;padding:6px 8px}}
+.graph-top .graph-close{margin-left:8px;pointer-events:auto;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#eae6da;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer}
 
 .graph-top .graph-close:hover{background:rgba(255,255,255,.18)}
 
@@ -67,6 +72,8 @@ a{color:var(--ouro);text-decoration:none}a:hover{text-decoration:underline}
 
 .graph-legend{position:absolute;bottom:64px;left:18px;z-index:2;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;font-size:11.5px;color:#d6d1c3;max-width:190px;line-height:1.9}
 
+.legend-sub{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7a7362;margin:8px 0 3px}
+.legend-sub:first-child{margin-top:0}
 .legend-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;color:#eae6da}
 
 .graph-legend.collapsed .legend-head{margin:0}
@@ -101,6 +108,11 @@ a{color:var(--ouro);text-decoration:none}a:hover{text-decoration:underline}
 <div class="graph-overlay" id="graphOverlay">
   <div class="graph-top">
     <div class="graph-title"><img class="logo-img" src="{{LOGO_SRC}}" alt="{{TITULO}}"> Visualização em gráfico</div>
+    <div class="graph-acoes">
+      <button class="graph-acao" id="graphSoCruz" title="Mostrar só os fios que ligam fontes diferentes">só os cruzamentos</button>
+      <button class="graph-acao" id="graphRemexe" title="Sacudir e deixar assentar de novo">remexer</button>
+      <button class="graph-acao" id="graphEnquadra" title="Trazer a teia inteira para a tela">enquadrar</button>
+    </div>
     <button class="graph-close" id="graphClose" title="Fechar">✕</button>
   </div>
   <canvas class="graph-canvas" id="graphCanvas"></canvas>
@@ -2165,6 +2177,15 @@ const GRAPH_DATA = window.__GRAPH_DATA__ || {group_order:[],nodes:[],links:[]};
 const GROUP_COLORS = window.__GROUP_COLORS__ || {};
 const NODE_OURO = '#c6a15b';
 
+// Cada fonte ganha um tom. O preenchimento do nó continua sendo do GRUPO; a
+// fonte aparece no contorno. Misturar os dois no mesmo pixel faria dois
+// sistemas de cor brigarem e nenhum dos dois seria legível.
+const CORES_FONTE = ['#c6a15b','#cf7f4d','#9ab8a0','#b98fb0','#8fa9c9','#c9b45e'];
+const TOM_FONTE = {};
+(GRAPH_DATA.fontes||[]).forEach((f,i)=>{ TOM_FONTE[f.id] = CORES_FONTE[i % CORES_FONTE.length]; });
+const corDaFonte = id => TOM_FONTE[id] || NODE_OURO;
+let soCruzamentos = false;
+
 const overlay = document.getElementById('graphOverlay');
 const canvas = document.getElementById('graphCanvas');
 if(!overlay || !canvas) return;
@@ -2176,10 +2197,20 @@ const legendEl = document.getElementById('graphLegend');
 const legendItems = GRAPH_DATA.group_order.map(g=>
   '<div class="legend-item"><span class="dot" style="background:'+(GROUP_COLORS[g]||NODE_OURO)+'"></span>'+g+'</div>'
 ).join('');
+const fontesItens = (GRAPH_DATA.fontes||[]).map(f=>
+  '<div class="legend-item"><span class="dot" style="background:'+corDaFonte(f.id)+'"></span>'+f.nome+'</div>'
+).join('');
+// A legenda de fontes só aparece com mais de uma: com uma fonte só, ela
+// informaria o que já está escrito no título do arquivo.
+const blocoFontes = (GRAPH_DATA.fontes||[]).length>1
+  ? '<div class="legend-sub">Fontes</div>'+fontesItens+
+    '<div class="legend-item"><span class="dot" style="background:#fff6e1;box-shadow:0 0 7px #eadfc0"></span>em mais de uma fonte</div>'+
+    '<div class="legend-sub">Categorias</div>'
+  : '';
 legendEl.innerHTML =
-  '<div class="legend-head"><span>Categorias</span>'+
+  '<div class="legend-head"><span>Legenda</span>'+
   '<button class="legend-toggle" id="legendToggle" title="Recolher legenda">–</button></div>'+
-  '<div class="legend-body" id="legendBody">'+legendItems+'</div>';
+  '<div class="legend-body" id="legendBody">'+blocoFontes+legendItems+'</div>';
 const legendToggle = document.getElementById('legendToggle');
 legendToggle.addEventListener('click', ()=>{
   const collapsed = legendEl.classList.toggle('collapsed');
@@ -2210,13 +2241,14 @@ function initNodes(){
   nodes = GRAPH_DATA.nodes.map((n,i)=>{
     const ang = (i/GRAPH_DATA.nodes.length)*Math.PI*2;
     return { id:n.id, label:n.label, group:n.group, deg:degree[n.id]||0,
-      r: 5 + Math.sqrt(degree[n.id]||0)*3.2,
+      fontes:n.fontes||[], ancora:!!n.ancora, cruza:!!n.cruza, fonte:n.fonte,
+      r: n.ancora ? 13 : 5 + Math.sqrt(degree[n.id]||0)*3.2,
       x: cx + Math.cos(ang)*R + (Math.random()-0.5)*20,
       y: cy + Math.sin(ang)*R + (Math.random()-0.5)*20,
       vx:0, vy:0, fixed:false };
   });
   const byId = {}; nodes.forEach(n=>byId[n.id]=n);
-  links = GRAPH_DATA.links.map(l=>({source:byId[l.source], target:byId[l.target]})).filter(l=>l.source&&l.target);
+  links = GRAPH_DATA.links.map(l=>({source:byId[l.source], target:byId[l.target], tipo:l.tipo})).filter(l=>l.source&&l.target);
   return byId;
 }
 
@@ -2246,8 +2278,13 @@ function tick(){
     }
   }
   // molas / arestas (escaladas por alpha)
-  const REST=170, K=0.0034;
   links.forEach(l=>{
+    // Fio de âncora mais curto e mais rígido: é ele que junta as notas em
+    // volta da própria fonte e cria um lóbulo por arquivo. A nota sustentada
+    // por duas fontes é puxada pelas duas âncoras e assenta no meio — é assim
+    // que o cruzamento aparece pela POSIÇÃO, não só pela cor.
+    const ancora = l.tipo===âncora;
+    const REST = ancora ? 150 : 210, K = ancora ? 0.0044 : 0.0026;
     const na=l.source, nb=l.target;
     let dx=nb.x-na.x, dy=nb.y-na.y;
     const d=Math.sqrt(dx*dx+dy*dy)||0.01, f=(d-REST)*K*a, fx=(dx/d)*f, fy=(dy/d)*f;
@@ -2267,42 +2304,107 @@ function tick(){
 function worldToScreen(x,y){ return [W/2 + (x+panX)*scale, H/2 + (y+panY)*scale]; }
 function screenToWorld(sx,sy){ return [(sx-W/2)/scale - panX, (sy-H/2)/scale - panY]; }
 
+/** Um fio da teia: curvo, como convém a teia. */
+function fio(x1,y1,x2,y2){
+  const mdx=(x1+x2)/2, mdy=(y1+y2)/2, vx=x2-x1, vy=y2-y1;
+  const vao=Math.hypot(vx,vy)||1, curva=Math.min(vao*0.12,26);
+  ctx.beginPath(); ctx.moveTo(x1,y1);
+  ctx.quadraticCurveTo(mdx - (vy/vao)*curva, mdy + (vx/vao)*curva, x2, y2);
+  ctx.stroke();
+}
+
+const rgba = (hex,a)=>{ const n=parseInt(hex.slice(1),16);
+  return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')'; };
+
 function draw(){
   ctx.clearRect(0,0,W,H);
   ctx.save();
   ctx.lineWidth = 1;
   links.forEach(l=>{
+    const atravessa = l.tipo==='atravessa';
+    // "Só os cruzamentos" esconde os fios internos e deixa a estrutura das
+    // fontes mais as travessias — num mapa real são 4 fios em 148, e é essa
+    // desproporção que torna o filtro útil.
+    if(soCruzamentos && !atravessa && l.tipo!=='âncora') return;
+
     const [x1,y1]=worldToScreen(l.source.x,l.source.y);
     const [x2,y2]=worldToScreen(l.target.x,l.target.y);
     const hl = hoverNode && (l.source===hoverNode || l.target===hoverNode);
-    ctx.strokeStyle = hl ? 'rgba(234,223,192,0.95)' : 'rgba(198,161,91,0.26)';
-    ctx.lineWidth = hl ? 1.8 : 1;
-    if(hl){ ctx.shadowColor = 'rgba(198,161,91,0.85)'; ctx.shadowBlur = 8; } else { ctx.shadowBlur = 0; }
-    ctx.beginPath(); ctx.moveTo(x1,y1);
-    const mdx=(x1+x2)/2, mdy=(y1+y2)/2, vx=x2-x1, vy=y2-y1;
-    const vao=Math.hypot(vx,vy)||1, curva=Math.min(vao*0.12,26);
-    ctx.quadraticCurveTo(mdx - (vy/vao)*curva, mdy + (vx/vao)*curva, x2, y2);
-    ctx.stroke(); ctx.shadowBlur = 0;
+
+    if(atravessa){
+      // O fio que só existe porque materiais diferentes falam da mesma coisa.
+      // É a informação mais valiosa da tela e a mais rara — por isso acende
+      // em branco-dourado com brilho, em vez de um tom a mais de dourado.
+      ctx.strokeStyle = 'rgba(255,246,225,0.95)';
+      ctx.lineWidth = 2.2;
+      ctx.shadowColor = 'rgba(234,223,192,0.9)'; ctx.shadowBlur = 12;
+    } else {
+      // Fio comum pega o tom da fonte que o sustenta: assim os lóbulos de cada
+      // arquivo se distinguem antes mesmo de olhar os nós.
+      const tom = corDaFonte(l.source.fonte || l.target.fonte || l.source.fontes?.[0]);
+      ctx.strokeStyle = hl ? 'rgba(234,223,192,0.95)' : rgba(tom, l.tipo==='âncora' ? 0.16 : 0.3);
+      ctx.lineWidth = hl ? 1.8 : 1;
+      if(hl){ ctx.shadowColor = 'rgba(198,161,91,0.85)'; ctx.shadowBlur = 8; } else { ctx.shadowBlur = 0; }
+    }
+    fio(x1,y1,x2,y2);
+    ctx.shadowBlur = 0;
   });
   nodes.forEach(n=>{
     const [x,y]=worldToScreen(n.x,n.y);
-    const r = n.r*scale;
+    const r = Math.max(n.r*scale,2);
     const isHover = n===hoverNode;
-    const isHome = n.id==='home';
-    ctx.beginPath(); ctx.arc(x,y,Math.max(r,2),0,Math.PI*2);
-    ctx.fillStyle = isHover ? '#eadfc0' : (GROUP_COLORS[n.group]||NODE_OURO);
     ctx.globalAlpha = hoverNode && !isHover && !links.some(l=>(l.source===hoverNode&&l.target===n)||(l.target===hoverNode&&l.source===n)) ? 0.35 : 1;
-    ctx.fill();
-    if(isHome){ ctx.lineWidth=2; ctx.strokeStyle='#eadfc0'; ctx.stroke(); }
+
+    if(n.cruza){ ctx.shadowColor='rgba(255,246,225,0.95)'; ctx.shadowBlur=16*Math.min(scale,1.4); }
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle = n.ancora ? corDaFonte(n.fonte)
+      : isHover ? '#eadfc0'
+      : n.cruza ? '#fff6e1'
+      : (GROUP_COLORS[n.group]||NODE_OURO);
+    ctx.fill(); ctx.shadowBlur=0;
+
+    // Anel = fonte. Nó de cruzamento leva metade do anel em cada tom, o que
+    // diz DE QUAIS fontes ele veio, e não só que veio de mais de uma.
+    if(n.ancora){
+      ctx.lineWidth=2.5; ctx.strokeStyle='#eadfc0';
+      ctx.beginPath(); ctx.arc(x,y,r+3,0,Math.PI*2); ctx.stroke();
+    } else if(n.fontes.length>1){
+      ctx.lineWidth=2.4;
+      const fatia = Math.PI*2/n.fontes.length;
+      n.fontes.forEach((f,i)=>{
+        ctx.strokeStyle = corDaFonte(f);
+        ctx.beginPath(); ctx.arc(x,y,r+2.5,-Math.PI/2+fatia*i,-Math.PI/2+fatia*(i+1)); ctx.stroke();
+      });
+    } else if(n.fontes.length===1){
+      ctx.lineWidth=1.4; ctx.strokeStyle=rgba(corDaFonte(n.fontes[0]),0.75);
+      ctx.beginPath(); ctx.arc(x,y,r+2,0,Math.PI*2); ctx.stroke();
+    }
     ctx.globalAlpha=1;
-    if(scale>0.55 || isHover || n.deg>=6){
-      ctx.fillStyle = isHover ? '#eadfc0' : 'rgba(234,230,218,0.72)';
-      ctx.font = (isHover?'600 ':'')+Math.max(11,11*Math.min(scale,1.3))+'px -apple-system,Segoe UI,Roboto,sans-serif';
+
+    if(n.ancora || isHover || n.cruza || scale>0.55 || n.deg>=6){
+      ctx.fillStyle = n.ancora||isHover ? '#eadfc0' : n.cruza ? '#fff6e1' : 'rgba(234,230,218,0.72)';
+      ctx.font = (n.ancora?'700 15px ':(isHover||n.cruza?'600 ':'')+Math.max(11,11*Math.min(scale,1.3))+'px ')+'-apple-system,Segoe UI,Roboto,sans-serif';
       ctx.textAlign='center';
-      ctx.fillText(n.label, x, y - r - 6);
+      ctx.fillText(n.label, x, y - r - (n.ancora?10:6));
     }
   });
   ctx.restore();
+}
+
+/**
+ * Traz a teia inteira para dentro da tela.
+ *
+ * Sem isto, um mapa grande assenta num retângulo bem maior que a janela e o
+ * gráfico abre mostrando o vazio entre os lóbulos — parece que não carregou.
+ */
+function enquadra(margem){
+  if(!nodes.length) return;
+  margem = margem || 80;
+  const px=nodes.map(n=>n.x), py=nodes.map(n=>n.y);
+  const x0=Math.min(...px), x1=Math.max(...px), y0=Math.min(...py), y1=Math.max(...py);
+  scale = Math.min(3, Math.max(0.2,
+    Math.min((W-margem*2)/Math.max(x1-x0,1), (H-margem*2)/Math.max(y1-y0,1))));
+  panX = -(x0+x1)/2; panY = -(y0+y1)/2;
 }
 
 function loop(){
@@ -2335,7 +2437,9 @@ function openGraph(){
     nodes.forEach(n=>{n.vx=0;n.vy=0;}); // reabre mantendo as posições, sem reaquecer
     alpha=0; alphaTarget=0;
   }
-  panX=0; panY=0; scale=1;
+  // Enquadra em vez de fixar scale=1: com teia grande, o zoom neutro abre
+  // mostrando o vazio entre os lóbulos e parece que não carregou.
+  enquadra();
   if(!running){ running=true; loop(); }
 }
 function closeGraph(){
@@ -2348,6 +2452,21 @@ function closeGraph(){
 const btnOpen=document.getElementById('graphBtnOpen');
 if(btnOpen) btnOpen.addEventListener('click', openGraph);
 document.getElementById('graphClose').addEventListener('click', closeGraph);
+
+// --- os três controles da barra ---------------------------------------
+const btSo=document.getElementById('graphSoCruz');
+btSo.addEventListener('click', ()=>{
+  soCruzamentos = !soCruzamentos;
+  btSo.classList.toggle('ativo', soCruzamentos);
+});
+document.getElementById('graphEnquadra').addEventListener('click', ()=>enquadra());
+document.getElementById('graphRemexe').addEventListener('click', ()=>{
+  // Sacode e deixa assentar: serve para conferir se o layout é estável ou se
+  // aquele desenho foi sorte de uma disposição inicial.
+  nodes.forEach(n=>{ n.x += (Math.random()-0.5)*140; n.y += (Math.random()-0.5)*140; n.vx=0; n.vy=0; });
+  alpha=1; alphaTarget=1;
+  setTimeout(()=>{ alphaTarget=0; setTimeout(()=>enquadra(), 1200); }, 900);
+});
 overlay.addEventListener('click', e=>{ if(e.target===overlay) closeGraph(); });
 window.addEventListener('keydown', e=>{ if(e.key==='Escape' && overlay.classList.contains('show')) closeGraph(); });
 window.addEventListener('resize', ()=>{ if(overlay.classList.contains('show')) resize(); });
@@ -2378,7 +2497,10 @@ window.addEventListener('mousemove', e=>{
 });
 window.addEventListener('mouseup', ()=>{
   if(dragNode){
-    if(!hasPanned){ const target=dragNode.id; dragNode.fixed=false; dragNode=null; dragging=false; canvas.classList.remove('dragging'); closeGraph(); location.hash='#'+target; return; }
+    if(!hasPanned){ const alvo=dragNode; dragNode.fixed=false; dragNode=null; dragging=false; canvas.classList.remove('dragging');
+      // Âncora de fonte não tem seção para abrir — clicar nela só solta o nó.
+      if(alvo.ancora) return;
+      closeGraph(); location.hash='#'+alvo.id; return; }
     dragNode.fixed=false;      // solta no lugar
     alphaTarget=0; alpha=Math.min(alpha,0.05); // esfria quase na hora → fica praticamente onde soltou
   }

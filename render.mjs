@@ -225,12 +225,34 @@ function coresPorGrupo(grupos) {
  */
 /** Monta nodes/links no formato que o grafo do template consome. */
 function montaGrafo(dados) {
-  // `fontes` e `cruza` viajam por nó para que o desenho possa distinguir de
-  // onde veio o quê. Preenchimento continua sendo do grupo; a fonte aparece no
-  // contorno. Sem essa separação seriam dois sistemas de cor brigando pelo
-  // mesmo pixel.
+  const fontes = dados.fontes ?? [];
+
+  /**
+   * Um nó-âncora por FONTE, no lugar do "home" único que existia antes.
+   *
+   * A troca não é cosmética: cada nota fica presa à âncora de cada fonte que a
+   * sustenta, então a física separa a teia em um lóbulo por arquivo — e a nota
+   * sustentada por duas é puxada pelos dois lados e PARA NO MEIO sozinha. O
+   * cruzamento passa a aparecer pela posição, antes mesmo de olhar a cor.
+   *
+   * Com uma fonte só, o resultado é o mesmo miolo denso de antes; muda só o
+   * rótulo, que passa a ser o nome do arquivo em vez de "Home".
+   *
+   * `fontes` e `cruza` viajam por nó para o desenho distinguir de onde veio o
+   * quê. Preenchimento continua sendo do grupo; a fonte aparece no contorno.
+   * Sem essa separação seriam dois sistemas de cor brigando pelo mesmo pixel.
+   */
+  const ancora = (id) => `fonte:${id}`;
   const nodes = [
-    { id: "home", label: "🏠 Home", group: dados.grupos[0], fontes: [], cruza: false },
+    ...fontes.map((f) => ({
+      id: ancora(f.id),
+      label: f.nome,
+      group: dados.grupos[0],
+      fonte: f.id,
+      fontes: [f.id],
+      ancora: true,
+      cruza: false,
+    })),
     ...dados.notas.map((n) => ({
       id: n.id,
       label: n.titulo,
@@ -242,23 +264,36 @@ function montaGrafo(dados) {
 
   const links = [];
   const vistos = new Set();
-  const adiciona = (a, b) => {
+  const adiciona = (a, b, tipo) => {
     if (a === b) return;
     // O grafo é não-direcionado: A-B e B-A são a mesma aresta.
     const chave = [a, b].sort().join(" ");
     if (vistos.has(chave)) return;
     vistos.add(chave);
-    links.push({ source: a, target: b });
+    links.push({ source: a, target: b, tipo });
   };
 
-  // Home ligado a todas as notas — é isso que dá ao grafo o miolo denso.
-  for (const nota of dados.notas) adiciona("home", nota.id);
-  for (const nota of dados.notas)
-    for (const alvo of nota.relacionado ?? []) adiciona(nota.id, alvo);
+  for (const nota of dados.notas) {
+    for (const f of nota.fontes ?? []) adiciona(ancora(f), nota.id, "âncora");
+  }
+
+  // O tipo do fio é o que o desenho usa para destacar a travessia. Atravessa
+  // quando as duas notas não compartilham NENHUMA fonte — ou seja, quando a
+  // ligação só existe porque materiais diferentes falam da mesma coisa. Num
+  // mapa real esses fios são raros (4 em 148 na primeira teia de duas fontes),
+  // e é justamente a raridade que os torna a informação mais valiosa da tela.
+  const porId = new Map(dados.notas.map((n) => [n.id, n]));
+  for (const nota of dados.notas) {
+    for (const alvo of nota.relacionado ?? []) {
+      const outra = porId.get(alvo);
+      const mesma = outra && (nota.fontes ?? []).some((f) => (outra.fontes ?? []).includes(f));
+      adiciona(nota.id, alvo, mesma ? "dentro" : "atravessa");
+    }
+  }
 
   return {
     group_order: dados.grupos,
-    fontes: (dados.fontes ?? []).map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo })),
+    fontes: fontes.map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo })),
     nodes,
     links,
   };
