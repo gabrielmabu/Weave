@@ -2177,6 +2177,11 @@ const GRAPH_DATA = window.__GRAPH_DATA__ || {group_order:[],nodes:[],links:[]};
 const GROUP_COLORS = window.__GROUP_COLORS__ || {};
 const NODE_OURO = '#c6a15b';
 
+// Escrito uma vez e comparado por constante: este valor tem acento e já foi
+// escrito sem aspas por engano numa edição, o que virou ReferenceError a cada
+// quadro da física — o grafo desenhava o círculo inicial e congelava ao toque.
+const TIPO_ANCORA = 'âncora';
+
 // Cada fonte ganha um tom. O preenchimento do nó continua sendo do GRUPO; a
 // fonte aparece no contorno. Misturar os dois no mesmo pixel faria dois
 // sistemas de cor brigarem e nenhum dos dois seria legível.
@@ -2236,15 +2241,51 @@ let alpha=0, alphaTarget=0;
 const ALPHA_DECAY=0.0228, ALPHA_MIN=0.0015, VEL_DECAY=0.78;
 function reheat(t){ alphaTarget = t>0 ? 0.3 : 0; if(t>0 && alpha<t) alpha=t; }
 
+/**
+ * Onde cada fonte mora.
+ *
+ * As âncoras recebem um X próprio, espalhado na horizontal: duas fontes ficam
+ * em hemisférios opostos, três em terços, e assim por diante. Não dá para
+ * esperar que a física as separe sozinha — cada âncora é puxada pelas dezenas
+ * de notas dela, o saldo dessas forças aponta para o centro do grafo, e as duas
+ * acabam empilhadas no mesmo ponto. O resultado era um só miolo com tudo em
+ * volta: uma mandala, em vez de duas teias que se tocam.
+ *
+ * O X é uma meta, não uma prisão: a força abaixo puxa para lá, mas o nó
+ * continua arrastável e o Y fica livre.
+ */
+const ANCORAS = GRAPH_DATA.nodes.filter(n=>n.ancora).map(n=>n.id);
+
+// A distância entre hemisférios acompanha o tamanho do maior lóbulo. Uma fonte
+// com 51 notas espalha suas bolinhas num disco de várias centenas de unidades;
+// separação fixa faria os dois lóbulos se atravessarem e o desenho voltaria a
+// parecer um miolo só. Medido: 51 notas de um lado e 3 do outro.
+const NOTAS_POR_FONTE = {};
+GRAPH_DATA.nodes.forEach(n=>{ if(!n.ancora) (n.fontes||[]).forEach(f=>{ NOTAS_POR_FONTE[f]=(NOTAS_POR_FONTE[f]||0)+1; }); });
+const MAIOR_LOBO = Math.max(1, ...Object.values(NOTAS_POR_FONTE));
+const SEPARACAO = Math.max(620, Math.round(Math.sqrt(MAIOR_LOBO)*230));
+
+function casaDaAncora(id){
+  const i = ANCORAS.indexOf(id);
+  if(i < 0 || ANCORAS.length < 2) return null;
+  return (i - (ANCORAS.length-1)/2) * SEPARACAO;
+}
+
 function initNodes(){
-  const cx=0, cy=0, R=Math.min(W,H)*0.32;
+  const R=Math.min(W,H)*0.32 || 320;
   nodes = GRAPH_DATA.nodes.map((n,i)=>{
     const ang = (i/GRAPH_DATA.nodes.length)*Math.PI*2;
+    const casa = n.ancora ? casaDaAncora(n.id) : null;
+    // Nota nasce perto da âncora da primeira fonte dela: começar já do lado
+    // certo poupa a física de desfazer um embaralhado inicial, e o layout
+    // assenta parecido a cada abertura em vez de sortear um desenho novo.
+    const berco = n.ancora ? casa : casaDaAncora('fonte:'+(n.fontes||[])[0]);
     return { id:n.id, label:n.label, group:n.group, deg:degree[n.id]||0,
       fontes:n.fontes||[], ancora:!!n.ancora, cruza:!!n.cruza, fonte:n.fonte,
+      casa,
       r: n.ancora ? 13 : 5 + Math.sqrt(degree[n.id]||0)*3.2,
-      x: cx + Math.cos(ang)*R + (Math.random()-0.5)*20,
-      y: cy + Math.sin(ang)*R + (Math.random()-0.5)*20,
+      x: (berco ?? 0) + (n.ancora ? 0 : Math.cos(ang)*R*0.55 + (Math.random()-0.5)*20),
+      y: (n.ancora ? 0 : Math.sin(ang)*R + (Math.random()-0.5)*20),
       vx:0, vy:0, fixed:false };
   });
   const byId = {}; nodes.forEach(n=>byId[n.id]=n);
@@ -2279,12 +2320,12 @@ function tick(){
   }
   // molas / arestas (escaladas por alpha)
   links.forEach(l=>{
-    // Fio de âncora mais curto e mais rígido: é ele que junta as notas em
-    // volta da própria fonte e cria um lóbulo por arquivo. A nota sustentada
-    // por duas fontes é puxada pelas duas âncoras e assenta no meio — é assim
-    // que o cruzamento aparece pela POSIÇÃO, não só pela cor.
-    const ancora = l.tipo===âncora;
-    const REST = ancora ? 150 : 210, K = ancora ? 0.0044 : 0.0026;
+    // Fio de âncora um pouco mais curto: é ele que junta as notas em volta da
+    // própria fonte. Mas NÃO muito mais rígido — com mola forte demais ele
+    // esmaga a estrutura entre as notas e o resultado vira um anel liso em
+    // volta da fonte, sem nenhuma informação de vizinhança.
+    const ehAncora = l.tipo === TIPO_ANCORA;
+    const REST = ehAncora ? 165 : 205, K = ehAncora ? 0.0030 : 0.0028;
     const na=l.source, nb=l.target;
     let dx=nb.x-na.x, dy=nb.y-na.y;
     const d=Math.sqrt(dx*dx+dy*dy)||0.01, f=(d-REST)*K*a, fx=(dx/d)*f, fy=(dy/d)*f;
@@ -2294,8 +2335,23 @@ function tick(){
   // centralização suave (escalada por alpha) + integração
   nodes.forEach(n=>{
     if(n.fixed) return;
-    n.vx += -n.x*0.0008*a;
-    n.vy += -n.y*0.0008*a;
+    if(n.casa != null){
+      // Âncora puxada para o hemisfério dela, e só na horizontal.
+      //
+      // Sem isto as âncoras empilham: cada uma é puxada pelas dezenas de notas
+      // que carrega, o saldo aponta para o centro do grafo, e as duas param no
+      // mesmo lugar — vira uma mandala com um miolo só. A centralização normal
+      // é substituída aqui, senão as duas forças brigariam.
+      //
+      // A constante é alta de propósito. Com 0,010 a âncora de 51 notas era
+      // arrastada pelo próprio peso e os hemisférios ficavam a 106px um do
+      // outro; ela precisa vencer o somatório das molas do lóbulo inteiro.
+      n.vx += (n.casa - n.x)*0.055*a;
+      n.vy += -n.y*0.0008*a;
+    } else {
+      n.vx += -n.x*0.0008*a;
+      n.vy += -n.y*0.0008*a;
+    }
     n.vx*=VEL_DECAY; n.vy*=VEL_DECAY;
     n.x+=n.vx; n.y+=n.vy;
   });
